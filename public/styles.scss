@@ -1,0 +1,468 @@
+/* --------------------- Open Props --------------------------- */
+
+/* the props */
+@import "https://unpkg.com/open-props";
+
+/* optional imports that use the props */
+// @import "https://unpkg.com/open-props/normalize.min.css";
+// @import "https://unpkg.com/open-props/buttons.min.css";
+
+/* ------------------------------------------------------------ */
+
+body {
+  font-family: sans-serif;
+  text-align: center;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  align-items: center;
+}
+
+.buttons {
+  display: flex;
+  justify-content: space-evenly;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  text-align: center;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+p,
+button {
+  margin: var(--size-6);
+  
+}
+
+body > picture,
+button {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;
+  // margin: 2rem;
+}
+
+// ******************* LANDING PAGE *********************
+
+.dashboard {
+  list-style-type: none;
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.card {
+  width: 200px;
+  height: 159.33px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background-color: #f0f0f0;
+  border: 2px solid transparent;
+  transition: all 0.2s ease-in-out;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  padding: 0px;
+  margin: 0px;
+}
+
+.card.is-selected {
+  border-color: #3b82f6;
+  /* Brand blue */
+  background-color: #eff6ff;
+  /* Very light blue tint */
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+  transform: translateY(-2px);
+  /* Slight lift effect */
+}
+
+// .card-image {
+//   width: 180px;
+//   height: 119.33px;
+// }
+
+.card:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.card-image {
+  width: 100%;
+  height: 60%;
+  padding-left: 0px;
+}
+
+.station-name {
+  // padding: 8px;
+  font-size: 1.2em;
+  text-align: center;
+}
+
+.logo {
+  display: block;
+  margin-bottom: 16px;
+  border: none;
+}
+
+.locate-button {
+  display: block;
+  margin-bottom: 16px;
+  margin-left: 17px;
+  padding: 10px 20px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.locate-button:hover {
+  background-color: #0056b3;
+}
+
+.location-logo {
+  width: 7%;
+  height: auto;
+}
+
+.station-direction {
+  margin-top: 8px;
+  padding: 8px;
+  font-size: 1em;
+  color: #007bff;
+  text-decoration: none;
+  /* background-color: #f8f8f8; */
+  /* border-radius: 4px; */
+}
+
+.details-card {
+  /* background-color: #fff; */
+  border-radius: 8px;
+  padding: 32px;
+  text-align: left;
+  grid-column: span 2;
+  height: 30vh;
+  /*Take up full height */
+  display: flex;
+  flex-direction: column;
+  justify-content: left;
+}
+
+.details-card h2 {
+  margin-bottom: 16px;
+}
+
+.details-card button {
+  display: inline-block;
+  padding: 10px 20px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-top: 16px;
+}
+
+.details-card button:hover {
+  background-color: #0056b3;
+}
+
+.info-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.info-item {
+  padding: 10px;
+  border-top: 1px solid #ccc;
+}
+
+.info-item strong {
+  margin-right: 5px;
+}
+
+@media (min-width: 600px) {
+  .details-card {
+    width: 50%;
+    /* Take up half the width on desktop */
+    margin: 0 auto;
+    /* Center the details-card on desktop */
+    height: 40vh;
+    /* Take up full height */
+  }
+}
+
+@media (max-width: 600px) {
+  .dashboard {
+    grid-template-columns: repeat(2, 1fr);
+    height: 38vh;
+  }
+
+  .details-card {
+    grid-column: span 2;
+  }
+
+  .card {
+    width: 160px;
+    height: 159.33px;
+    display: flex;
+    flex-direction: column;
+    background-color: #f0f0f0;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+    padding: 0;
+    margin: 0;
+  }
+
+  .card-image {
+    width: 100%;
+    height: 60%;
+    object-fit: cover;
+  }
+}
+
+//************************ SIGNUP/SIGNIN ******************************
+/* Register.css */
+.form-container {
+  max-width: 400px;
+  margin: 0 auto;
+  padding: 20px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background-color: #f9f9f9;
+}
+
+h2 {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+
+.form-group input {
+  width: 95.5%;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.form-group input.error {
+  border-color: red;
+}
+
+.error-message {
+  color: red;
+  font-size: 0.875em;
+}
+
+.submit-button {
+  width: 100%;
+  padding: 10px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1em;
+}
+
+.register-button:hover {
+  background-color: #0056b3;
+}
+
+//************************** Dashboard ********************************
+.station-dashboard {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 20px;
+    text-align: center;
+}
+
+h1 {
+    font-size: 2rem;
+    margin-bottom: 20px;
+    color: #333;
+}
+
+.station-card {
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    transition: transform 0.3s;
+}
+
+.station-card:hover {
+    transform: translateY(-5px);
+}
+
+.card-header {
+    padding: 20px;
+    border-bottom: 1px solid #eee;
+    background: #f4f8fb;
+}
+
+.card-header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: #007bff;
+}
+
+.price {
+    font-size: 1.8rem;
+    color: #1a5332;
+    margin-top: 10px;
+}
+
+.edit-button,
+.save-button,
+.cancel-button {
+    margin-top: 10px;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.edit-button {
+    background-color: #007bff;
+    color: #fff;
+}
+
+.edit-button:hover {
+    background-color: #0056b3;
+}
+
+.save-button {
+    background-color: #28a745;
+    color: #fff;
+    margin-right: 41%;
+}
+
+.save-button:hover {
+    background-color: #218838;
+}
+
+.cancel-button {
+    background-color: #dc3545;
+    color: #fff;
+}
+
+.cancel-button:hover {
+    background-color: #c82333;
+}
+
+.edit-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.price-input {
+    margin-bottom: 8px;
+    padding: 8px;
+    font-size: 1.2rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.card-body {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px;
+}
+
+.availability-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.status-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+
+.status-dot.available {
+    background-color: #28a745;
+}
+
+.status-dot.unavailable {
+    background-color: #dc3545;
+}
+
+.availability-toggle .switch {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 20px;
+}
+
+.availability-toggle .switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.availability-toggle .slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: 0.4s;
+    border-radius: 34px;
+}
+
+.availability-toggle .slider:before {
+    position: absolute;
+    content: "";
+    height: 14px;
+    width: 14px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.4s;
+    border-radius: 50%;
+}
+
+.availability-toggle input:checked+.slider {
+    background-color: #28a745;
+}
+
+.availability-toggle input:checked+.slider:before {
+    transform: translateX(18px);
+}
+
+.error {
+    color: red;
+}

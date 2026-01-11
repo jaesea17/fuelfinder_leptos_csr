@@ -1,0 +1,11 @@
+{
+    "buildCommand": "trunk build --release",
+    "outputDirectory": "dist",
+    "framework": null,
+    "routes": [
+        {
+            "src": "/(.*)",
+            "dest": "/index.html"
+        }
+    ]
+}

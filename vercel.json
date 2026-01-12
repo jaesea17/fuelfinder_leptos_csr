@@ -1,11 +1,20 @@
 {
+  "version": 2,
   "buildCommand": "curl https://sh.rustup.rs -sSf | sh -s -- -y && source $HOME/.cargo/env && rustup target add wasm32-unknown-unknown && cargo install trunk && trunk build --release",
   "outputDirectory": "dist",
-  "framework": null,
-  "routes": [
+  "cleanUrls": true,
+  "rewrites": [
     {
-      "src": "/(.*)",
-      "dest": "/index.html"
+      "source": "/(assets|public)/.*",
+      "destination": "/$0"
+    },
+    {
+      "source": "/(.*).(js|wasm|css|png|jpg|svg|ico|json)",
+      "destination": "/$1.$2"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }

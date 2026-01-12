@@ -1,7 +1,7 @@
 #!/bin/bash
 # Install Rust
 curl https://sh.rustup.rs -sSf | sh -s -- -y
-source $HOME/.cargo/env
+source . $HOME/.cargo/env
 
 # Add WASM target
 rustup target add wasm32-unknown-unknown

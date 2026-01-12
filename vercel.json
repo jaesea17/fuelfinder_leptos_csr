@@ -1,7 +1,6 @@
 {
   "version": 2,
-  "installCommand": "curl https://sh.rustup.rs -sSf | sh -s -- -y && source $HOME/.cargo/env && rustup target add wasm32-unknown-unknown && wget -qO- https://github.com/trunk-rs/trunk/releases/latest/download/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf- && mv trunk ./trunk_bin && npm install",
-  "buildCommand": "source $HOME/.cargo/env && ./trunk_bin build --release",
+  "buildCommand": "curl https://sh.rustup.rs -sSf | sh -s -- -y && source $HOME/.cargo/env && rustup target add wasm32-unknown-unknown && cargo install trunk && trunk build --release",
   "outputDirectory": "dist",
   "cleanUrls": true,
   "rewrites": [

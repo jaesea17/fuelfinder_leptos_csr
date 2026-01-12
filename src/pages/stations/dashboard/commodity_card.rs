@@ -46,6 +46,10 @@ pub fn CommodityCard(
             Ok(())
         }
     });
+    let is_toggling_this = move || {
+        toggle_action.pending().get() && 
+        toggle_action.input().get().map(|(id, _)| id == stored_id.get_value()).unwrap_or(false)
+    };
 
     view! {
         <div class="station-card">
@@ -58,7 +62,7 @@ pub fn CommodityCard(
                         // Accessing stored_id and stored_price here is safe and repeated
                         view! {
                             <div class="price-display-wrapper">
-                                {move || if is_updating_this() {
+                                {move || if is_updating_this() || is_toggling_this() {
                                     view! { <div class="price-spinner"></div> }.into_any()
                                 } else {
                                     view! { 

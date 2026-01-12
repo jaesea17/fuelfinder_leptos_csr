@@ -1,7 +1,7 @@
 {
   "version": 2,
   "installCommand": "sh vercel-install.sh",
-  "buildCommand": "source . $HOME/.cargo/env && ./trunk_bin build --release",
+  "buildCommand": "export PATH=\"$HOME/.cargo/bin:$PATH\" && ./trunk_bin build --release",
   "outputDirectory": "dist",
   "cleanUrls": true,
   "rewrites": [

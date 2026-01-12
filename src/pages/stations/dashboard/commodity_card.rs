@@ -12,46 +12,41 @@ pub fn CommodityCard(
     let is_editing = RwSignal::new(false);
     let price_input = RwSignal::new(commodity.price.to_string());
     let error_msg = RwSignal::new(None::<String>);
-    
-    // 1. Extract the data needed for the logic
-    let commodity_id = commodity.id.clone();
+ 
+    //  Extract static data and Store these so they are "Copy" and accessible in any closure below
+    let stored_id = StoredValue::new(commodity.id.clone());
+    let stored_price = StoredValue::new(commodity.price);
     let commodity_name = commodity.name.clone();
-    let initial_price = commodity.price;
     let is_available = RwSignal::new(commodity.is_available);
 
-    // 2. Wrap the logic in a StoredValue. 
-    // This makes the closure "Copy" so it can be used in the view multiple times.
-    let handle_save = StoredValue::new(move |_| {
-        match price_input.get().parse::<i32>() {
-            Ok(new_val) => {
-                update_action.dispatch((commodity_id.clone(), new_val));
-                is_editing.set(false);
-                error_msg.set(None);
-            },
-            Err(_) => error_msg.set(Some("Invalid price number".into())),
-        }
-    });
+    // Derived signal for the spinner
+    let is_updating_this = move || {
+        update_action.pending().get() && 
+        update_action.input().get().map(|(id, _)| id == stored_id.get_value()).unwrap_or(false)
+    };
 
     let toggle_action: Action<(String, bool), Result<(), String>> = Action::new_local(move |(id, status): &(String, bool)| {
         let id = id.clone();
         let status = *status;
-        let price = 0;
         async move {
             let token = get_token();
-            let BASE_URL = BaseUrl::get_base_url();
-            let url = format!("{BASE_URL}/api/v1/commodities/{}", id);
-            let body = serde_json::json!({ "price": price, "isAvailable": status });
+            let base_url = BaseUrl::get_base_url();
+            let url = format!("{base_url}/api/v1/commodities/{}", id);
+            let body = serde_json::json!({ "price": 0, "isAvailable": status });
             
             Request::patch(&url)
-            .header("Authorization", &format!("Bearer {token}"))
-            .json(&body)
-            .map_err(|e| e.to_string())?
-            .send().await.map_err(|e| e.to_string())?;
+                .header("Authorization", &format!("Bearer {token}"))
+                .json(&body)
+                .map_err(|e| e.to_string())?
+                .send()
+                .await
+                .map_err(|e| e.to_string())?;
         
             station_resource.refetch(); 
             Ok(())
         }
     });
+
     view! {
         <div class="station-card">
             <div class="card-header">
@@ -59,11 +54,26 @@ pub fn CommodityCard(
                 
                 <Show 
                     when=move || is_editing.get()
-                    fallback=move || view! {
-                        <p class="price">"₦" {initial_price.to_string()}</p>
-                        <button class="edit-button" on:click=move |_| is_editing.set(true)>
-                            "Update"
-                        </button>
+                    fallback=move || {
+                        // Accessing stored_id and stored_price here is safe and repeated
+                        view! {
+                            <div class="price-display-wrapper">
+                                {move || if is_updating_this() {
+                                    view! { <div class="price-spinner"></div> }.into_any()
+                                } else {
+                                    view! { 
+                                        <div><p class="price">"₦" {stored_price.get_value().to_string()}</p></div> 
+                                    }.into_any()
+                                }}
+                            </div>
+                            <button 
+                                class="edit-button" 
+                                disabled=move || is_updating_this()
+                                on:click=move |_| is_editing.set(true)
+                            >
+                                "Update"
+                            </button>
+                        }
                     }
                 >
                     <div class="edit-section">
@@ -74,10 +84,14 @@ pub fn CommodityCard(
                             on:input=move |ev| price_input.set(event_target_value(&ev))
                         />
                         <button class="save-button" 
-                            // Use .with_value() to call the stored closure
-                            on:click=move |ev| handle_save.with_value(|f| f(ev))
+                            on:click=move |_| {
+                                if let Ok(new_val) = price_input.get().parse::<i32>() {
+                                    update_action.dispatch((stored_id.get_value(), new_val));
+                                    is_editing.set(false);
+                                }
+                            }
                         >
-                            {move || if update_action.pending().get() { "Saving..." } else { "Save" }}
+                            "Save"
                         </button>
                         <button class="cancel-button" on:click=move |_| is_editing.set(false)>
                             "Cancel"
@@ -87,7 +101,6 @@ pub fn CommodityCard(
             </div>
             <div class="card-body">
                 <div class="availability-status">
-                    // Status dot changes color based on the reactive signal
                     <span class=move || format!("status-dot {}", if is_available.get() { "available" } else { "unavailable" })></span>
                     <span>{move || if is_available.get() { "Available" } else { "Not Available" }}</span>
                 </div>
@@ -99,15 +112,12 @@ pub fn CommodityCard(
                             prop:checked=move || is_available.get()
                             on:change=move |ev| {
                                 let checked = event_target_checked(&ev);
-                                
-                                // Logic: If trying to turn ON, check if price is valid
-                                if checked && initial_price <= 0 {
+                                if checked && stored_price.get_value() <= 0 {
                                     error_msg.set(Some("Please update price first".into()));
-                                    // Reset the checkbox visually
                                     is_available.set(false);
                                 } else {
                                     is_available.set(checked);
-                                    toggle_action.dispatch((commodity.id.clone(), checked));
+                                    toggle_action.dispatch((stored_id.get_value(), checked));
                                     error_msg.set(None);
                                 }
                             }

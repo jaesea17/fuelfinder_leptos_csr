@@ -9,6 +9,7 @@ pub fn Signin() -> impl IntoView {
     let server_error = RwSignal::new(None::<String>);
     let validation_errors = RwSignal::new(std::collections::HashMap::<String, String>::new());
     let navigate = use_navigate();
+    let show_password = RwSignal::new(false);
     
     // 2. The Registration Action
     // We use Action::new_local because we are doing client-side GPS work first
@@ -67,7 +68,22 @@ pub fn Signin() -> impl IntoView {
 
                 <div class="form-group">
                     <label>"Password"</label>
-                    <input type="password" name="password" autocomplete="current-password"/>
+                    <div class="password-wrapper">
+                        // 2. Dynamic type based on show_password signal
+                        <input 
+                            type=move || if show_password.get() { "text" } else { "password" } 
+                            name="password" 
+                            style="width: 100%; padding-right: 40px;"
+                        />
+                        // 3. Eye Toggle Button
+                        <button 
+                            type="button" 
+                            class="password-toggle"
+                            on:click=move |_| show_password.update(|v| *v = !*v)
+                        >
+                            {move || if show_password.get() { "hide" } else { "show" }}
+                        </button>
+                    </div>
                     {move || validation_errors.get().get("password").map(|m| view! { <small class="error-message">{m.clone()}</small> })}
                 </div>
 

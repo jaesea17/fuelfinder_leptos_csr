@@ -13,6 +13,7 @@ pub struct RegisterFormData {
     pub email: String,
     pub phone: String,
     pub password: String,
+    pub code: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]

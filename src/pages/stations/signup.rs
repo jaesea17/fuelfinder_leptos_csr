@@ -136,7 +136,7 @@ pub fn Signup() -> impl IntoView {
                 <A href="/signin">"Login"</A> 
             </p>
             {move || register_action.value().get().and_then(|res| res.err()).map(|err| view! {
-                <small class="error-message">{err}</small>
+                <small class="error-message">"Oops! an error occurred: "{err}</small>
             })}
         </div>
     }

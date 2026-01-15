@@ -36,8 +36,9 @@ pub async fn register_station(payload: RegisterFormData, lat: f64, lon:f64) -> R
                 "email": payload.email,
                 "phone": payload.phone,
                 "password": payload.password,
+                "code": payload.code,
                 "latitude": lat,
-                "longitude": lon, 
+                "longitude": lon
             });
     let request = Request::post(url.as_str())
         .header("Content-Type", "application/json")

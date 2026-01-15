@@ -21,7 +21,7 @@ pub fn Signup() -> impl IntoView {
                 Some(coords) => coords,
                 None => return Err("Could determine GPS location.".to_string()),
             };
-            let _ = validate_boundary::validate_abuja_bounds(lat, lon);
+            let _ = validate_boundary::validate_abuja_bounds(lat, lon)?;
             let _station = register_station(data, lat, lon).await?;
             logging::log!("Registering at: {}, {}", lat, lon);
             navigate("/signin", Default::default());

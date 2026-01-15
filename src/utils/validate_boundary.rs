@@ -7,6 +7,6 @@ pub fn validate_abuja_bounds(lat: f64, lon: f64) -> Result<(), String> {
     if lat >= min_lat && lat <= max_lat && lon >= min_lon && lon <= max_lon {
         Ok(())
     } else {
-        Err("Oops! seems like you are outside the Abuja service area.".into())
+        Err("Seems like you are outside the Abuja service area.".into())
     }
 }

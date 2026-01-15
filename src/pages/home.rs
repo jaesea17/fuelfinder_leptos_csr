@@ -9,7 +9,7 @@ pub fn Home() -> impl IntoView {
     let get_stations_action = Action::new_local(move |_: &()| {
         async move {
             if let Some((lat, lon)) = locate().await {
-                let _ = validate_boundary::validate_abuja_bounds(lat, lon);
+                let _ = validate_boundary::validate_abuja_bounds(lat, lon)?;
                 fetch_closests(lat, lon).await
             } else {
                 Err("Unable to retrieve location coordinates.".to_string())

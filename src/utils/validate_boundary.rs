@@ -5,8 +5,8 @@ pub fn validate_abuja_bounds(lat: f64, lon: f64) -> Result<(), String> {
     let max_lon = 7.75;
 
     if lat >= min_lat && lat <= max_lat && lon >= min_lon && lon <= max_lon {
-        Ok(())
-    } else {
         Err("Seems like you are outside the Abuja service area.".into())
+    } else {
+        Ok(())
     }
 }

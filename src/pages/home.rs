@@ -2,17 +2,18 @@ use crate::pages::fetch_nearest_stations_dto::{Station, fetch_closests};
 use crate::utils::get_stations_imgs::STATION_IMAGES;
 use crate::utils::get_gps_location::locate;
 use crate::utils::validate_boundary;
-use leptos::prelude::*;
+use leptos::{logging, prelude::*};
 
 #[component]
 pub fn Home() -> impl IntoView {
     let get_stations_action = Action::new_local(move |_: &()| {
         async move {
             if let Some((lat, lon)) = locate().await {
+                logging::log!("these are the lat an lon {}, {}", lat, lon);
                 let _ = validate_boundary::validate_abuja_bounds(lat, lon)?;
                 fetch_closests(lat, lon).await
             } else {
-                Err("GPS took too long, permission was either denied or you are currently not in Abuja.".to_string())
+                Err("GPS took too long or permission was denied.".to_string())
             }
         }
     });

@@ -12,7 +12,7 @@ pub fn Home() -> impl IntoView {
                 let _ = validate_boundary::validate_abuja_bounds(lat, lon)?;
                 fetch_closests(lat, lon).await
             } else {
-                Err("Unable to retrieve location coordinates.".to_string())
+                Err("GPS took too long, permission was either denied or you are currently not in Abuja.".to_string())
             }
         }
     });

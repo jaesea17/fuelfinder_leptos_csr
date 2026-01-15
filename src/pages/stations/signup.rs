@@ -1,4 +1,4 @@
-use crate::{pages::stations::dto::{RegisterFormData, register_station}, utils::get_gps_location::locate};
+use crate::{pages::stations::dto::{RegisterFormData, register_station}, utils::{get_gps_location::locate, validate_boundary}};
 use leptos::{logging, prelude::*};
 use wasm_bindgen::JsCast;
 use leptos_router::{components::{A, Form}, hooks::use_navigate};
@@ -19,8 +19,9 @@ pub fn Signup() -> impl IntoView {
         async move {
             let (lat, lon) = match locate().await {
                 Some(coords) => coords,
-                None => return Err("GPS location is required to register a station.".to_string()),
+                None => return Err("Could determine GPS location.".to_string()),
             };
+            let _ = validate_boundary::validate_abuja_bounds(lat, lon);
             let _station = register_station(data, lat, lon).await?;
             logging::log!("Registering at: {}, {}", lat, lon);
             navigate("/signin", Default::default());

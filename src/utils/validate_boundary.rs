@@ -1,12 +1,15 @@
+use leptos::logging;
+
 pub fn validate_abuja_bounds(lat: f64, lon: f64) -> Result<(), String> {
     let min_lat = 8.25;
     let max_lat = 9.30;
     let min_lon = 6.75;
     let max_lon = 7.75;
 
+    logging::log!("ran here in val_boundary 7");
     if lat >= min_lat && lat <= max_lat && lon >= min_lon && lon <= max_lon {
-        Err("Seems like you are outside the Abuja service area.".into())
-    } else {
         Ok(())
+    } else {
+        Err("Seems like you are outside the Abuja service area.".into())
     }
 }

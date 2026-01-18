@@ -66,7 +66,7 @@ pub fn Home() -> impl IntoView {
                             }.into_any()
                         }
                     },
-                    Some(Err(e)) => view! { <p class="error-msg">"Oops! something went wrong: "{e}</p> }.into_any(),
+                    Some(Err(e)) => view! { <p class="error-msg">"Oops! something went wrong "</p> }.into_any(),
                     None => view! { <p class="status-msg">"Stations will appear here (service currently available only in Abuja)"</p> }.into_any(),
                 }}
             </div>

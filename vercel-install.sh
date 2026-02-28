@@ -1,8 +1,15 @@
 #!/bin/bash
 set -e 
 
-# 1. Skip Rust installation if rustup is already present
-if ! command -v rustup &> /dev/null; then
+# 1. Source the correct Rust env based on where it's installed
+if [ -f "/rust/env" ]; then
+  # Vercel's pre-installed Rust
+  . "/rust/env"
+elif [ -f "$HOME/.cargo/env" ]; then
+  # Locally installed Rust
+  . "$HOME/.cargo/env"
+else
+  # Install Rust if not present
   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
   . "$HOME/.cargo/env"
 fi

@@ -18,8 +18,8 @@ pub fn Signup() -> impl IntoView {
         
         async move {
             let (lat, lon) = match locate().await {
-                Some(coords) => coords,
-                None => return Err("Could determine GPS location.".to_string()),
+                Ok(coords) => coords,
+                Err(e) => return Err(e),
             };
             let _ = validate_boundary::validate_abuja_bounds(lat, lon)?;
             let _station = register_station(data, lat, lon).await?;
@@ -136,8 +136,13 @@ pub fn Signup() -> impl IntoView {
                 "Already registered? " 
                 <A href="/signin">"Login"</A> 
             </p>
-            {move || register_action.value().get().and_then(|res| res.err()).map(|err| view! {
-                <small class="error-message">"Oops! an error occurred: "{err}</small>
+            {move || register_action.value().get().and_then(|res| res.err()).map(|err| {
+                let msg = if err.contains("Permission denied") {
+                    "Location access was denied. Please allow location permissions and try again.".to_string()
+                } else {
+                    format!("Oops! an error occurred: {}", err)
+                };
+                view! { <small class="error-message">{msg}</small> }
             })}
         </div>
     }

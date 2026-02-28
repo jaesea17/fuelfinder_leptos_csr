@@ -8,7 +8,7 @@ use leptos::{logging, prelude::*};
 pub fn Home() -> impl IntoView {
     let get_stations_action = Action::new_local(move |_: &()| {
         async move {
-            if let Some((lat, lon)) = locate().await {
+            if let Ok((lat, lon)) = locate().await {
                 logging::log!("these are the lat an lon {}, {}", lat, lon);
                 let _ = validate_boundary::validate_abuja_bounds(lat, lon)?;
                 fetch_closests(lat, lon).await
@@ -66,7 +66,18 @@ pub fn Home() -> impl IntoView {
                             }.into_any()
                         }
                     },
-                    Some(Err(e)) => view! { <p class="error-msg">"Oops! something went wrong "</p> }.into_any(),
+                    Some(Err(e)) => {
+                        if e.contains("Geolocation failed") {
+                            view! {
+                                <p class="error-msg">
+                                    "Location access was denied. "
+                                    "Please enable it in your browser settings and reload."
+                                </p>
+                            }.into_any()
+                        } else {
+                            view! { <p class="error-msg">{format!("Oops! something went wrong")}</p> }.into_any()
+                        }
+                    },
                     None => view! { <p class="status-msg">"Stations will appear here (service currently available only in Abuja)"</p> }.into_any(),
                 }}
             </div>

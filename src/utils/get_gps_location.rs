@@ -1,24 +1,37 @@
 use wasm_bindgen::prelude::*;
-use web_sys::{window, Position, PositionOptions}; // Added PositionOptions
+use web_sys::{window, Position, PositionOptions};
 use futures::channel::oneshot;
 use leptos::logging;
 
-pub async fn locate() -> Option<(f64, f64)> {
-    let window = window()?;
+/// Attempts to obtain the user's current latitude/longitude pair.
+///
+/// # Errors
+///
+/// Returns an `Err(String)` describing why the location could not be
+/// retrieved.  Common reasons include the browser not supporting
+/// geolocation, the call failing, or the user denying permission.
+pub async fn locate() -> Result<(f64, f64), String> {
+    let window = window().ok_or_else(|| "window object unavailable".to_string())?;
     let navigator = window.navigator();
-    let geolocation = navigator.geolocation().ok()?;
+    let geolocation = navigator
+        .geolocation()
+        .map_err(|_| "Geolocation API unavailable".to_string())?;
 
-    let (tx, rx) = oneshot::channel::<(f64, f64)>();
+    // send a Result through the channel so callers know why we failed
+    let (tx, rx) = oneshot::channel::<Result<(f64, f64), String>>();
     
-    // We need two Options for the sender because we have two separate closures
-    let mut tx_success = Some(tx);
-
-    // 1. Setup Options: Mobile GPS can be slow, so we set a 10s timeout
+    // Setup Options: Mobile GPS can be slow, so we set a 10s timeout
     let options = PositionOptions::new();
     options.set_enable_high_accuracy(true); 
     options.set_timeout(10000); // 10 seconds timeout
     options.set_maximum_age(60000); // Allow 1-minute old cached location for speed
 
+    // share the sender across both callbacks; once one of them runs we drop it
+    use std::rc::Rc;
+    use std::cell::RefCell;
+    let sender = Rc::new(RefCell::new(Some(tx)));
+
+    let success_sender = sender.clone();
     let success_callback = Closure::wrap(Box::new(move |pos: Position| {
         let coords = pos.coords();
         let lat = coords.latitude();
@@ -26,33 +39,37 @@ pub async fn locate() -> Option<(f64, f64)> {
         
         logging::log!("GPS Fixed: {}, {}", lat, lon);
 
-        if let Some(sender) = tx_success.take() {
-            let _ = sender.send((lat, lon));
+        if let Some(s) = success_sender.borrow_mut().take() {
+            let _ = s.send(Ok((lat, lon)));
         }
     }) as Box<dyn FnMut(Position)>);
 
-    // 2. IMPORTANT: The error callback must exist to unblock the 'rx' channel
-    // We use a separate channel or just let rx fail when tx is dropped.
-    // However, to be safe, we'll let this closure just log.
+    let error_sender = sender.clone();
     let error_callback = Closure::wrap(Box::new(move |err: JsValue| {
-        logging::error!("Geolocation Error or Timeout: {:?}", err);
-        // When this closure finishes, if success_callback hasn't run, 
-        // tx_success is dropped, which sends a 'Cancel' to rx.await.
+        let msg = err.as_string().unwrap_or_else(|| format!("{:?}", err));
+        logging::error!("Geolocation Error: {}", msg);
+        if let Some(s) = error_sender.borrow_mut().take() {
+            let _ = s.send(Err(format!("Geolocation failed: {}", msg)));
+        }
     }) as Box<dyn FnMut(JsValue)>);
 
-    let _ = geolocation.get_current_position_with_error_callback_and_options(
+    if let Err(_e) = geolocation.get_current_position_with_error_callback_and_options(
         success_callback.as_ref().unchecked_ref(),
         Some(error_callback.as_ref().unchecked_ref()),
-        &options // Pass the options here
-    );
+        &options,
+    ) {
+        // If the synchronous call failed (e.g. security policy), send an error
+        if let Some(s) = sender.borrow_mut().take() {
+            let _ = s.send(Err("Failed to initiate geolocation request".to_string()));
+        }
+    }
 
     // Prevent the browser from cleaning up the closures prematurely
     success_callback.forget();
     error_callback.forget();
 
-    // rx.await.ok() will now return None if:
-    // - The user denies permission
-    // - The 10-second timeout is reached
-    // - The device loses GPS signal
-    rx.await.ok()
+    match rx.await {
+        Ok(res) => res,
+        Err(_) => Err("Geolocation channel dropped".to_string()),
+    }
 }

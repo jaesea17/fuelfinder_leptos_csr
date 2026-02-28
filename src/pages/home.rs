@@ -74,7 +74,10 @@ pub fn Home() -> impl IntoView {
                                     "Please enable it in your browser settings and reload."
                                 </p>
                             }.into_any()
-                        } else {
+                        }else if e.contains("outside the Abuja service area") {
+                             view! { <p class="error-msg">{format!("Oops! {e}")}</p> }.into_any()
+                        } 
+                        else {
                             view! { <p class="error-msg">{format!("Oops! something went wrong")}</p> }.into_any()
                         }
                     },

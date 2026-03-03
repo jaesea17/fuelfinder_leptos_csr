@@ -67,18 +67,18 @@ pub fn Home() -> impl IntoView {
                         }
                     },
                     Some(Err(e)) => {
-                        if e.contains("Geolocation failed") {
+                        if e.contains("GPS took too long or permission was denied") {
                             view! {
                                 <p class="error-msg">
-                                    "Location access was denied. "
-                                    "Please enable it in your browser settings and reload."
+                                    "Something went wrong! It could be that location access was denied."<br/>
+                                    "Please make sure location access is **enabled** in your browser settings and retry."
                                 </p>
                             }.into_any()
-                        }else if e.contains("outside the Abuja service area") {
+                        }else if e.contains("seems you are outside the Abuja service area") {
                              view! { <p class="error-msg">{format!("Oops! {e}")}</p> }.into_any()
                         } 
                         else {
-                            view! { <p class="error-msg">{format!("Oops! something went wrong")}</p> }.into_any()
+                            view! { <p class="error-msg">{format!("Oops! something went wrong...{e}")}</p> }.into_any()
                         }
                     },
                     None => view! { <p class="status-msg">"Stations will appear here (service currently available only in Abuja)"</p> }.into_any(),

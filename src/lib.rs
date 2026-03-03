@@ -11,7 +11,9 @@ mod pages;
 mod utils;
 
 // Top-Level pages
-use crate::pages::home::Home;
+use crate::pages::petrol::Home_Petrol;
+use crate::pages::gas::Home_Gas;
+use crate::pages::landing::Landing;
 use crate::pages::stations::dashboard::dashboard::StationDashboard;
 use crate::pages::stations::signin::Signin;
 use crate::pages::stations::signup::Signup;
@@ -37,9 +39,10 @@ pub fn App() -> impl IntoView {
         <Meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
         <Router>
-            <img class="logo" src="assets/petrol_pump/pump_red.jpeg" alt="FuelFinder Logo"  />
             <Routes fallback=|| view! { <NotFound/> }>
-                <Route path=StaticSegment("/") view=Home/>
+                <Route path=StaticSegment("/") view=Landing/>
+                <Route path=StaticSegment("/petrol") view=Home_Petrol/>
+                <Route path=StaticSegment("/gas") view=Home_Gas/>
                 <Route path=StaticSegment("/signup") view=Signup/>
                 <Route path=StaticSegment("/signin") view=Signin/>
                 <Route 

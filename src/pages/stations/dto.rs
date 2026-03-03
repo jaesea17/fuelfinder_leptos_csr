@@ -14,6 +14,7 @@ pub struct RegisterFormData {
     pub phone: String,
     pub password: String,
     pub code: String,
+    pub station_type: String, // "petrol" or "cooking gas"
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
@@ -37,6 +38,7 @@ pub async fn register_station(payload: RegisterFormData, lat: f64, lon:f64) -> R
                 "phone": payload.phone,
                 "password": payload.password,
                 "code": payload.code,
+                "station_type": payload.station_type,
                 "latitude": lat,
                 "longitude": lon
             });

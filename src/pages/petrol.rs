@@ -5,7 +5,7 @@ use crate::utils::validate_boundary;
 use leptos::{logging, prelude::*};
 
 #[component]
-pub fn Home() -> impl IntoView {
+pub fn Home_Petrol() -> impl IntoView {
     let get_stations_action = Action::new_local(move |_: &()| {
         async move {
             if let Ok((lat, lon)) = locate().await {
@@ -23,6 +23,7 @@ pub fn Home() -> impl IntoView {
 
     view! {
         <div class="home-container">
+            <img class="logo" src="assets/petrol_pump/pump_red.jpeg" alt="FuelFinder Logo"  />
             <button 
                 class="locate-button" 
                 disabled=move || get_stations_action.pending().get()
@@ -31,7 +32,7 @@ pub fn Home() -> impl IntoView {
                 {move || if get_stations_action.pending().get() { 
                     "Finding..." 
                 } else { 
-                    "Find Fuel" 
+                    "Find Petrol Station" 
                 }}
             </button>
 

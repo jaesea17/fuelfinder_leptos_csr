@@ -21,6 +21,7 @@ pub struct RegisterFormData {
 pub struct LoginFormData {
     pub email: String,
     pub password: String,
+    pub station_type: String,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -86,6 +87,34 @@ pub async fn login_station(payload: LoginFormData) -> Result<LoginResponse, Stri
             }
         }
         // If network failed entirely
+        Err(e) => Err(format!("Network error: {}", e)),
+    }
+}
+
+pub async fn generate_reg_code(code: String, super_password: String) -> Result<String, String> {
+    let BASE_URL = BaseUrl::get_base_url();
+    let url = format!("{BASE_URL}/api/v1/auth/reg-code");
+    let payload = serde_json::json!({
+        "code": code,
+        "super_password": super_password
+    });
+    
+    let request = Request::post(url.as_str())
+        .header("Content-Type", "application/json")
+        .json(&payload)
+        .map_err(|e| e.to_string())?
+        .send()
+        .await;
+
+    match request {
+        Ok(resp) => {
+            if resp.ok() {
+                // Return the code back on success
+                Ok(code)
+            } else {
+                Err(format!("Server error: {}", resp.status()))
+            }
+        }
         Err(e) => Err(format!("Network error: {}", e)),
     }
 }

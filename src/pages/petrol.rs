@@ -11,7 +11,7 @@ pub fn Home_Petrol() -> impl IntoView {
             if let Ok((lat, lon)) = locate().await {
                 logging::log!("these are the lat an lon {}, {}", lat, lon);
                 let _ = validate_boundary::validate_abuja_bounds(lat, lon)?;
-                fetch_closests(lat, lon).await
+                fetch_closests(lat, lon, "petrol".to_string()).await
             } else {
                 Err("GPS took too long or permission was denied.".to_string())
             }
@@ -68,14 +68,14 @@ pub fn Home_Petrol() -> impl IntoView {
                         }
                     },
                     Some(Err(e)) => {
-                        if e.contains("GPS took too long or permission was denied") {
+                        if e.contains("Geolocation failed") || e.contains("GPS took too long or permission was denied") {
                             view! {
                                 <p class="error-msg">
                                     "Something went wrong! It could be that location access was denied."<br/>
                                     "Please make sure location access is **enabled** in your browser settings and retry."
                                 </p>
                             }.into_any()
-                        }else if e.contains("Seems you are outside the Abuja service area") {
+                        }else if e.contains("seems you are outside the Abuja service area") {
                              view! { <p class="error-msg">{format!("Oops! {e}")}</p> }.into_any()
                         } 
                         else {

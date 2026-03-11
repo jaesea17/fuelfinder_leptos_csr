@@ -149,11 +149,15 @@ pub fn Signup() -> impl IntoView {
                 "Already registered? " 
                 <A href="/signin">"Login"</A> 
             </p>
-            {move || register_action.value().get().and_then(|res| res.err()).map(|err| {
-                let msg = if err.contains("Permission denied") {
-                    "Location access was denied. Please allow location permissions and try again.".to_string()
+            {move || register_action.value().get().and_then(|res| res.err()).map(|err: String| {
+                let msg = if err.contains("GPS took too long or permission was denied") || err.contains("Geolocation failed") {
+                    "OOps! Something went wrong! 
+                    It could be that location access was denied. 
+                    Please make sure location access is **enabled** in your browser settings and retry.".to_string()
+                } else if err.contains("outside the Abuja service area") || err.contains("seems you are outside the Abuja service area") {
+                    format!("Oops! {}", err)
                 } else {
-                    format!("Oops! an error occurred: {}", err)
+                    "Oops! something went wrong. Please try again.".to_string()
                 };
                 view! { <small class="error-message">{msg}</small> }
             })}

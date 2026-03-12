@@ -1,7 +1,7 @@
 use leptos::prelude::*;
 use leptos_meta::*;
 use leptos_router::hooks::use_navigate;
-use leptos_router::{StaticSegment, components::*, path};
+use leptos_router::{StaticSegment, components::*};
 
 use crate::pages::not_found::NotFound;
 
@@ -27,7 +27,7 @@ pub fn App() -> impl IntoView {
         <Html attr:lang="en" attr:dir="ltr" attr:data-theme="light" />
 
         // sets the document title
-        <Title text="Welcome to Leptos CSR" />
+        <Title text="FuelGetter | Find Cooking Gas, Petrol Prices & Petrol Stations Nearby" />
 
         // connect style for tailwind
         <Stylesheet id="leptos" href="./style/output.css"/>
@@ -35,6 +35,9 @@ pub fn App() -> impl IntoView {
         // injects metadata in the <head> of the page
         <Meta charset="UTF-8" />
         <Meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <Meta name="description" content="FuelGetter helps you find cooking gas, compare petrol prices, and discover nearby petrol stations quickly." />
+        <Meta name="keywords" content="cooking gas, gas refill, petrol prices, fuel prices, petrol stations near me, gas stations near me, FuelGetter" />
+        <Meta name="robots" content="index,follow" />
 
         <Router>
             <img class="logo" src="assets/petrol_pump/pump_red.jpeg" alt="FuelFinder Logo"  />

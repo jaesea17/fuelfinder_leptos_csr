@@ -1,6 +1,7 @@
 <!doctype html>
 <html>
   <head>
+<<<<<<< HEAD
     <title>
       FuelGetter | Find Cooking Gas & Petrol Stations with their products
       available Nearby
@@ -48,6 +49,22 @@
     <link data-trunk rel="copy-dir" href="public/assets" />
   </head>
 
+=======
+    <!-- <base href="/" /> -->
+    <!-- Add a plain CSS file: see https://trunkrs.dev/assets/#css -->
+    <!-- If using Tailwind with Leptos CSR, see https://trunkrs.dev/assets/#tailwind instead-->
+    <link data-trunk rel="scss" href="public/styles.scss" />
+
+    <!-- Include favicon in dist output: see https://trunkrs.dev/assets/#icon -->
+    <link data-trunk rel="icon" href="public/favicon.ico" />
+
+    <!-- include support for `wasm-bindgen --weak-refs` - see: https://rustwasm.github.io/docs/wasm-bindgen/reference/weak-references.html -->
+    <link data-trunk rel="rust" data-wasm-opt="z" data-weak-refs />
+
+    <link data-trunk rel="copy-dir" href="public/assets" />
+  </head>
+
+>>>>>>> add_subscriptions
   <body>
     <div id="app">
       <div

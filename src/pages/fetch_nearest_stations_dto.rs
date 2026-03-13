@@ -19,6 +19,7 @@ pub struct Station {
     pub address: String,
     pub email: String,
     pub phone: String,
+    pub station_type: Option<String>,
     pub latitude: f64,
     pub longitude: f64,
     pub role: String,
@@ -28,9 +29,10 @@ pub struct Station {
     pub commodities: Vec<Commodity>,
 }
 
-pub async fn fetch_closests(lat:f64, lon:f64) -> Result<Vec<Station>, String> {
+pub async fn fetch_closests(lat:f64, lon:f64, station_type:String) -> Result<Vec<Station>, String> {
     let BASE_URL = BaseUrl::get_base_url();
-    let url = format!("{BASE_URL}/api/v1/stations/closest?latitude={lat}&longitude={lon}"); // Added "stations" to match typical API
+    let url = 
+    format!("{BASE_URL}/api/v1/stations/closest?latitude={lat}&longitude={lon}&station_type={station_type}"); // Added "stations" to match typical API
     let request = Request::get(url.as_str()).send().await;
 
     match request {

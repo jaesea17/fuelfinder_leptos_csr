@@ -42,6 +42,7 @@ pub fn Signup() -> impl IntoView {
         let email = form_data.get("email").as_string().unwrap_or_default();
         let password = form_data.get("password").as_string().unwrap_or_default();
         let code = form_data.get("code").as_string().unwrap_or_default();
+        let station_type = form_data.get("station_type").as_string().unwrap_or_default();
         
         let mut errors = std::collections::HashMap::new();
 
@@ -51,6 +52,7 @@ pub fn Signup() -> impl IntoView {
         if password.is_empty() { errors.insert("password".into(), "Password is required".into()); }
         if phone.len() != 11 || !phone.chars().all(|c| c.is_ascii_digit()){ errors.insert("phone".into(), "Invalid phone number".into()); }
         if code.is_empty() { errors.insert("code".into(), "Code is required".into()); }
+        if station_type.is_empty() { errors.insert("station_type".into(), "Station type is required".into()); }
 
         if errors.is_empty() {
             validation_errors.set(errors);
@@ -61,6 +63,7 @@ pub fn Signup() -> impl IntoView {
                 phone,
                 password,
                 code,
+                station_type,
             };
             register_action.dispatch(data);
         } else {
@@ -127,6 +130,16 @@ pub fn Signup() -> impl IntoView {
                     {move || validation_errors.get().get("code").map(|m| view! { <small class="error-message">{m.clone()}</small> })}
                 </div>
 
+                <div class="form-group">
+                    <label>"Station Type"</label>
+                    <select name="station_type">
+                        <option value="">"-- Select --"</option>
+                        <option value="petrol">"Petrol"</option>
+                        <option value="gas">"Cooking Gas"</option>
+                    </select>
+                    {move || validation_errors.get().get("station_type").map(|m| view! { <small class="error-message">{m.clone()}</small> })}
+                </div>
+
                 <button type="submit" class="submit-button" disabled=move || register_action.pending().get()>
                     {move || if register_action.pending().get() { "Registering..." } else { "Register" }}
                 </button>
@@ -136,11 +149,15 @@ pub fn Signup() -> impl IntoView {
                 "Already registered? " 
                 <A href="/signin">"Login"</A> 
             </p>
-            {move || register_action.value().get().and_then(|res| res.err()).map(|err| {
-                let msg = if err.contains("Permission denied") {
-                    "Location access was denied. Please allow location permissions and try again.".to_string()
+            {move || register_action.value().get().and_then(|res| res.err()).map(|err: String| {
+                let msg = if err.contains("GPS took too long or permission was denied") || err.contains("Geolocation failed") {
+                    "OOps! Something went wrong! 
+                    It could be that location access was denied. 
+                    Please make sure location access is **enabled** in your browser settings and retry.".to_string()
+                } else if err.contains("outside the Abuja service area") || err.contains("seems you are outside the Abuja service area") {
+                    format!("Oops! {}", err)
                 } else {
-                    format!("Oops! an error occurred: {}", err)
+                    "Oops! something went wrong. Please try again.".to_string()
                 };
                 view! { <small class="error-message">{msg}</small> }
             })}

@@ -38,18 +38,21 @@ pub fn Signin() -> impl IntoView {
         
         let email = form_data.get("email").as_string().unwrap_or_default();
         let password = form_data.get("password").as_string().unwrap_or_default();
+        let station_type = form_data.get("station_type").as_string().unwrap_or_default();
         
         let mut errors = std::collections::HashMap::new();
 
         // Validations
         if email.is_empty() { errors.insert("email".into(), "Email is required".into()); }
         if password.is_empty() { errors.insert("password".into(), "Password is required".into()); }
+        if station_type.is_empty() { errors.insert("station_type".into(), "station type is required".into()); }
         
         if errors.is_empty() {
             validation_errors.set(errors);
             let data = LoginFormData {
                 email,
                 password,
+                station_type,
             };
             login_action.dispatch(data);
         } else {
@@ -58,8 +61,9 @@ pub fn Signin() -> impl IntoView {
     };
 
     view! {
-        <div class="form-container">
-            <form on:submit=on_submit>
+        <div class="signin-page">
+            <div class="form-container">
+                <form on:submit=on_submit>
                 <div class="form-group">
                     <label>"Email"</label>
                     <input type="email" name="email" autocomplete="email"/>
@@ -87,16 +91,27 @@ pub fn Signin() -> impl IntoView {
                     {move || validation_errors.get().get("password").map(|m| view! { <small class="error-message">{m.clone()}</small> })}
                 </div>
 
-                <button type="submit" class="submit-button" disabled=move || login_action.pending().get()>
-                    {move || if login_action.pending().get() { "..." } else { "Login" }}
-                </button>
-            </form>
+                <div class="form-group">
+                    <label>"Station Type"</label>
+                    <select name="station_type">
+                        <option value="">"-- Select --"</option>
+                        <option value="petrol">"Petrol"</option>
+                        <option value="gas">"Cooking Gas"</option>
+                    </select>
+                    {move || validation_errors.get().get("station_type").map(|m| view! { <small class="error-message">{m.clone()}</small> })}
+                </div>
 
-            <p>"Do not have an account? " <A href="/signup">"Register"</A></p>
-            // Server Error Display
-            {move || login_action.value().get().and_then(|res| res.err()).map(|err: String| view! {
-                <small class="error-message">{err}</small>
-            })}
+                    <button type="submit" class="submit-button" disabled=move || login_action.pending().get()>
+                        {move || if login_action.pending().get() { "..." } else { "Login" }}
+                    </button>
+                </form>
+
+                <p>"Do not have an account? " <A href="/signup">"Register"</A></p>
+                // Server Error Display
+                {move || login_action.value().get().and_then(|res| res.err()).map(|err: String| view! {
+                    <small class="error-message">{err}</small>
+                })}
+            </div>
         </div>
     }
         

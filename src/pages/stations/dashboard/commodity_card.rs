@@ -19,6 +19,23 @@ pub fn CommodityCard(
     let commodity_name = commodity.name.clone();
     let is_available = RwSignal::new(commodity.is_available);
 
+    let title_text = move || {
+        let unit = station_resource
+            .get()
+            .and_then(|res| res.ok())
+            .and_then(|station| station.station_type)
+            .map(|station_type| {
+                if station_type.to_lowercase().contains("gas") {
+                    "KG"
+                } else {
+                    "Litre"
+                }
+            })
+            .unwrap_or("Litre");
+
+        format!("{} - Price/{}", commodity_name.to_uppercase(), unit)
+    };
+
     // Derived signal for the spinner
     let is_updating_this = move || {
         update_action.pending().get() && 
@@ -54,7 +71,7 @@ pub fn CommodityCard(
     view! {
         <div class="station-card">
             <div class="card-header">
-                <h2>{move || commodity_name.to_uppercase()} " - Price/Litre"</h2>
+                <h2>{title_text}</h2>
                 
                 <Show 
                     when=move || is_editing.get()

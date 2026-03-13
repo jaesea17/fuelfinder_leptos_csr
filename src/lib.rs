@@ -11,10 +11,14 @@ mod pages;
 mod utils;
 
 // Top-Level pages
-use crate::pages::home::Home;
+use crate::pages::petrol::Home_Petrol;
+use crate::pages::gas::Home_Gas;
+use crate::pages::landing::Landing;
 use crate::pages::stations::dashboard::dashboard::StationDashboard;
 use crate::pages::stations::signin::Signin;
 use crate::pages::stations::signup::Signup;
+use crate::pages::stations::registration_code::RegistrationCode;
+use crate::pages::admin::panel::AdminPanel;
 use crate::utils::protect_route::is_authenticated;
 
 /// An app router which renders the homepage and handles 404's
@@ -29,9 +33,6 @@ pub fn App() -> impl IntoView {
         // sets the document title
         <Title text="FuelGetter | Find Cooking Gas, Petrol Prices & Petrol Stations Nearby" />
 
-        // connect style for tailwind
-        <Stylesheet id="leptos" href="./style/output.css"/>
-
         // injects metadata in the <head> of the page
         <Meta charset="UTF-8" />
         <Meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -40,11 +41,14 @@ pub fn App() -> impl IntoView {
         <Meta name="robots" content="index,follow" />
 
         <Router>
-            <img class="logo" src="assets/petrol_pump/pump_red.jpeg" alt="FuelFinder Logo"  />
             <Routes fallback=|| view! { <NotFound/> }>
-                <Route path=StaticSegment("/") view=Home/>
+                <Route path=StaticSegment("/") view=Landing/>
+                <Route path=StaticSegment("/petrol") view=Home_Petrol/>
+                <Route path=StaticSegment("/gas") view=Home_Gas/>
                 <Route path=StaticSegment("/signup") view=Signup/>
                 <Route path=StaticSegment("/signin") view=Signin/>
+                <Route path=StaticSegment("/reg-code") view=RegistrationCode/>
+                <Route path=StaticSegment("/admin") view=AdminPanel/>
                 <Route 
                     path=StaticSegment("/station") 
                     view=move || {

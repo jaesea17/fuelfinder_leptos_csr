@@ -5,6 +5,16 @@ use leptos::prelude::*;
 use crate::{pages::fetch_nearest_stations_dto::Station, utils::base_url};
 use crate::utils::base_url::BaseUrl;
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct DashboardNotification {
+    pub id: String,
+    pub title: String,
+    pub body: String,
+    pub kind: String,
+    pub is_read: bool,
+    pub created_at: String,
+}
+
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct RegisterFormData {
@@ -14,12 +24,14 @@ pub struct RegisterFormData {
     pub phone: String,
     pub password: String,
     pub code: String,
+    pub station_type: String, // "petrol" or "cooking gas"
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct LoginFormData {
     pub email: String,
     pub password: String,
+    pub station_type: String,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -37,6 +49,7 @@ pub async fn register_station(payload: RegisterFormData, lat: f64, lon:f64) -> R
                 "phone": payload.phone,
                 "password": payload.password,
                 "code": payload.code,
+                "station_type": payload.station_type,
                 "latitude": lat,
                 "longitude": lon
             });
@@ -85,5 +98,49 @@ pub async fn login_station(payload: LoginFormData) -> Result<LoginResponse, Stri
         }
         // If network failed entirely
         Err(e) => Err(format!("Network error: {}", e)),
+    }
+}
+
+pub async fn generate_reg_code(code: String, super_password: String) -> Result<String, String> {
+    let BASE_URL = BaseUrl::get_base_url();
+    let url = format!("{BASE_URL}/api/v1/auth/reg-code");
+    let payload = serde_json::json!({
+        "code": code,
+        "super_password": super_password
+    });
+    
+    let request = Request::post(url.as_str())
+        .header("Content-Type", "application/json")
+        .json(&payload)
+        .map_err(|e| e.to_string())?
+        .send()
+        .await;
+
+    match request {
+        Ok(resp) => {
+            if resp.ok() {
+                // Return the code back on success
+                Ok(code)
+            } else {
+                Err(format!("Server error: {}", resp.status()))
+            }
+        }
+        Err(e) => Err(format!("Network error: {}", e)),
+    }
+}
+
+pub async fn fetch_station_notifications(token: String) -> Result<Vec<DashboardNotification>, String> {
+    let base_url = BaseUrl::get_base_url();
+    let url = format!("{base_url}/api/v1/stations/dashboard/notifications");
+    let resp = Request::get(&url)
+        .header("Authorization", &format!("Bearer {token}"))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if resp.ok() {
+        resp.json::<Vec<DashboardNotification>>().await.map_err(|e| e.to_string())
+    } else {
+        Err(format!("Server error: {}", resp.status()))
     }
 }

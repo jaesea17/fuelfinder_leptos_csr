@@ -108,8 +108,22 @@ pub fn Signin() -> impl IntoView {
 
                 <p>"Do not have an account? " <A href="/signup">"Register"</A></p>
                 // Server Error Display
-                {move || login_action.value().get().and_then(|res| res.err()).map(|err: String| view! {
-                    <small class="error-message">{err}</small>
+                {move || login_action.value().get().and_then(|res| res.err()).map(|err: String| {
+                    if err.to_lowercase().contains("subscription expired") {
+                        view! {
+                            <div class="subscription-expired-banner">
+                                <span class="sub-expired-icon">"⏰"</span>
+                                <div>
+                                    <strong>"Subscription Expired"</strong>
+                                    <p>"Your subscription has expired. Please contact the administrator to renew it."</p>
+                                </div>
+                            </div>
+                        }.into_any()
+                    } else {
+                        view! {
+                            <small class="error-message">{err}</small>
+                        }.into_any()
+                    }
                 })}
             </div>
         </div>

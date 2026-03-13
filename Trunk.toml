@@ -43,6 +43,10 @@ port = 3000
 # disable_address_lookup = false
 # Open a browser tab once the initial build is complete.
 open = false
+
+[[proxy]]
+rewrite = "/api"
+backend = "http://127.0.0.1:8080/api"
 # Whether to disable fallback to index.html for missing files.
 # no_spa = false
 # Disable auto-reload of the web app.

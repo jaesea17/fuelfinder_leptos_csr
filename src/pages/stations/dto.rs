@@ -39,6 +39,11 @@ pub struct LoginResponse {
     pub access_token: String,
 }
 
+#[derive(Deserialize)]
+struct ApiErrorBody {
+    message: String,
+}
+
 pub async fn register_station(payload: RegisterFormData, lat: f64, lon:f64) -> Result<Station, String> {
     let BASE_URL = BaseUrl::get_base_url();
     let url = format!("{BASE_URL}/api/v1/auth/signup"); // Added "stations" to match typical API
@@ -92,8 +97,13 @@ pub async fn login_station(payload: LoginFormData) -> Result<LoginResponse, Stri
                 let response:LoginResponse = resp.json().await.map_err(|e| format!("Error while parsing, {}",e.to_string()))?;
                 Ok(response)
             } else {
-                // If 4xx or 5xx status code
-                Err(format!("Server error: {}", resp.status()))
+                // If 4xx or 5xx status code — parse the JSON body for the real message
+                let msg = resp
+                    .json::<ApiErrorBody>()
+                    .await
+                    .map(|b| b.message)
+                    .unwrap_or_else(|_| format!("Server error: {}", resp.status()));
+                Err(msg)
             }
         }
         // If network failed entirely

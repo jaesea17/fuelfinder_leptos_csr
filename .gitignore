@@ -2,4 +2,4 @@
 /dist
 /node_modules
 .vscode/
-pkg/.DS_Store
+**/.DS_Store

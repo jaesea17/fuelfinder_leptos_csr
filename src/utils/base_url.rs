@@ -7,7 +7,7 @@ impl BaseUrl{
                 if cfg!(debug_assertions) {
                     "http://localhost:8080".to_string()
                 } else {
-                    "https://close-siusan-jaesea-21c201ce.koyeb.app".to_string()
+                    "".to_string()
                 }
             })
     }

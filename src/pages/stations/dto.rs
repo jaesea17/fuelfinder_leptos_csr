@@ -5,6 +5,16 @@ use leptos::prelude::*;
 use crate::{pages::fetch_nearest_stations_dto::Station, utils::base_url};
 use crate::utils::base_url::BaseUrl;
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct DashboardNotification {
+    pub id: String,
+    pub title: String,
+    pub body: String,
+    pub kind: String,
+    pub is_read: bool,
+    pub created_at: String,
+}
+
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct RegisterFormData {
@@ -116,5 +126,21 @@ pub async fn generate_reg_code(code: String, super_password: String) -> Result<S
             }
         }
         Err(e) => Err(format!("Network error: {}", e)),
+    }
+}
+
+pub async fn fetch_station_notifications(token: String) -> Result<Vec<DashboardNotification>, String> {
+    let base_url = BaseUrl::get_base_url();
+    let url = format!("{base_url}/api/v1/stations/dashboard/notifications");
+    let resp = Request::get(&url)
+        .header("Authorization", &format!("Bearer {token}"))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if resp.ok() {
+        resp.json::<Vec<DashboardNotification>>().await.map_err(|e| e.to_string())
+    } else {
+        Err(format!("Server error: {}", resp.status()))
     }
 }

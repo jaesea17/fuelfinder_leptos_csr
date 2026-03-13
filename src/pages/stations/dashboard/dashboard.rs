@@ -3,9 +3,9 @@ use leptos::prelude::*;
 use leptos_router::hooks::use_navigate;
 
 use crate::pages::fetch_nearest_stations_dto::Station;
-// Adjust this import path to where your CommodityCard is located
 use crate::pages::stations::dashboard::commodity_card::CommodityCard;
 use crate::pages::stations::dashboard::utils::get_token;
+use crate::pages::stations::dto::fetch_station_notifications;
 use crate::utils::base_url::BaseUrl;
 
 #[component]
@@ -24,6 +24,12 @@ pub fn StationDashboard() -> impl IntoView {
             .map_err(|e| e.to_string())?;
         
         resp.json::<Station>().await.map_err(|e| e.to_string())
+    });
+
+    // Separate resource for notifications - non-blocking
+    let notifications_resource = LocalResource::new(|| async move {
+        let token = get_token();
+        fetch_station_notifications(token).await
     });
 
     // Action for updating prices - remains local for WASM compatibility
@@ -55,6 +61,51 @@ pub fn StationDashboard() -> impl IntoView {
 
     view! {
         <div class="station-dashboard">
+            // Notification banner — renders as soon as ready, never blocks station content
+            {move || notifications_resource.get().map(|res| match res {
+                Ok(notifs) if !notifs.is_empty() => {
+                    let unread_count = notifs.iter().filter(|n| !n.is_read).count();
+                    view! {
+                        <div class="notifications-panel">
+                            <div class="notifications-header">
+                                <span class="bell-icon">"🔔"</span>
+                                <strong>
+                                    {if unread_count > 0 {
+                                        format!("Notifications  ({} unread)", unread_count)
+                                    } else {
+                                        "Notifications".to_string()
+                                    }}
+                                </strong>
+                            </div>
+                            <div class="notifications-list">
+                                <For
+                                    each=move || notifs.clone()
+                                    key=|n| n.id.clone()
+                                    children=move |notif| {
+                                        let kind_class = if notif.kind == "subscription" {
+                                            "notification-item subscription-notice"
+                                        } else {
+                                            "notification-item"
+                                        };
+                                        let read_class = if notif.is_read { "" } else { "unread" };
+                                        view! {
+                                            <div class=format!("{kind_class} {read_class}")>
+                                                <p class="notification-title">
+                                                    {if !notif.is_read { "● " } else { "" }}
+                                                    {notif.title.clone()}
+                                                </p>
+                                                <p class="notification-body">{notif.body.clone()}</p>
+                                            </div>
+                                        }
+                                    }
+                                />
+                            </div>
+                        </div>
+                    }.into_any()
+                },
+                _ => view! { <></> }.into_any(),
+            })}
+
             <Suspense fallback=move || view! { <p class="loading">"Loading dashboard data..."</p> }>
                 {move || station_resource.get().map(|res| match res {
                     Ok(data) => view! {

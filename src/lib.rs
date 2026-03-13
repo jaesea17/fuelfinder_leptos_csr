@@ -18,6 +18,7 @@ use crate::pages::stations::dashboard::dashboard::StationDashboard;
 use crate::pages::stations::signin::Signin;
 use crate::pages::stations::signup::Signup;
 use crate::pages::stations::registration_code::RegistrationCode;
+use crate::pages::admin::panel::AdminPanel;
 use crate::utils::protect_route::is_authenticated;
 
 /// An app router which renders the homepage and handles 404's
@@ -44,6 +45,7 @@ pub fn App() -> impl IntoView {
                 <Route path=StaticSegment("/signup") view=Signup/>
                 <Route path=StaticSegment("/signin") view=Signin/>
                 <Route path=StaticSegment("/reg-code") view=RegistrationCode/>
+                <Route path=StaticSegment("/admin") view=AdminPanel/>
                 <Route 
                     path=StaticSegment("/station") 
                     view=move || {

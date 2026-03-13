@@ -1565,6 +1565,22 @@ h1 {
   color: #475569;
 }
 
+.status-msg-region {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+.fuel-results-hint {
+  display: none;
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid #dbeafe;
+  background: #eff6ff;
+  color: #1e40af;
+  font-weight: 600;
+}
+
 .error-msg {
   color: #b91c1c;
   border: 1px solid #fecaca;
@@ -1701,6 +1717,18 @@ h1 {
 @media (max-width: 640px) {
   .fuel-page {
     padding: 14px 12px 28px;
+  }
+
+  .fuel-results-hint {
+    display: block;
+  }
+
+  .fuel-hero.fuel-hero--stations-loaded {
+    display: none;
+  }
+
+  .fuel-page .fuel-details-empty {
+    display: none;
   }
 
   .fuel-locate-button {

@@ -20,10 +20,30 @@ pub fn Home_Petrol() -> impl IntoView {
 
     let stations_result = get_stations_action.value();
     let selected_station = RwSignal::new(None::<Station>);
+    let details_ref = NodeRef::<leptos::html::Div>::new();
+    let has_scrolled = RwSignal::new(false);
+
+    Effect::new(move |_| {
+        if selected_station.get().is_some() && !has_scrolled.get() {
+            if let Some(el) = details_ref.get() {
+                let win = web_sys::window().unwrap();
+                let width = win.inner_width().ok()
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(1024.0);
+                if width <= 640.0 {
+                    el.scroll_into_view_with_bool(true);
+                    has_scrolled.set(true);
+                }
+            }
+        }
+    });
 
     view! {
         <div class="fuel-page petrol-theme">
-            <div class="fuel-hero">
+            <div class=move || match stations_result.get() {
+                Some(Ok(ref s)) if !s.is_empty() => "fuel-hero fuel-hero--stations-loaded",
+                _ => "fuel-hero",
+            }>
                 <img class="fuel-hero-logo" src="assets/petrol_pump/pump_red.jpeg" alt="Petrol Station"  />
             </div>
             <button 
@@ -51,27 +71,30 @@ pub fn Home_Petrol() -> impl IntoView {
                                     "fuel-station-grid"
                                 };
                                 view! { 
-                                    <ul class=grid_class>
-                                        {stations.into_iter().enumerate().map(|(i, s)|{
-                                            // FIX 1: Use modulo (%) to prevent index out of bounds
-                                            let image_url = STATION_IMAGES[i % STATION_IMAGES.len()];
-                                            let station = s.clone();
-                                            let station_id = s.id.clone();
-                                            
-                                            view! { 
-                                                <li 
-                                                    class=move || if selected_station.get().as_ref().map(|sel| sel.id == station_id).unwrap_or(false) 
-                                                        {"fuel-station-card is-selected"} else {"fuel-station-card"}
-                                                    on:click=move |_| selected_station.set(Some(station.clone()))
-                                                >
-                                                    <img src=image_url class="fuel-station-image" alt="Station" />
-                                                    <div class="fuel-station-name">
-                                                        <p>{s.name}</p> 
-                                                    </div>
-                                                </li>
-                                            }
-                                        }).collect_view()}
-                                    </ul>
+                                    <>
+                                        <p class="fuel-results-hint">"Click a station to view details below"</p>
+                                        <ul class=grid_class>
+                                            {stations.into_iter().enumerate().map(|(i, s)|{
+                                                // FIX 1: Use modulo (%) to prevent index out of bounds
+                                                let image_url = STATION_IMAGES[i % STATION_IMAGES.len()];
+                                                let station = s.clone();
+                                                let station_id = s.id.clone();
+                                                
+                                                view! { 
+                                                    <li 
+                                                        class=move || if selected_station.get().as_ref().map(|sel| sel.id == station_id).unwrap_or(false) 
+                                                            {"fuel-station-card is-selected"} else {"fuel-station-card"}
+                                                        on:click=move |_| selected_station.set(Some(station.clone()))
+                                                    >
+                                                        <img src=image_url class="fuel-station-image" alt="Station" />
+                                                        <div class="fuel-station-name">
+                                                            <p>{s.name}</p> 
+                                                        </div>
+                                                    </li>
+                                                }
+                                            }).collect_view()}
+                                        </ul>
+                                    </>
                                 }.into_any()
                             }
                         },
@@ -90,11 +113,11 @@ pub fn Home_Petrol() -> impl IntoView {
                                 view! { <p class="error-msg">{format!("Oops! something went wrong")}</p> }.into_any()
                             }
                         },
-                        None => view! { <p class="status-msg">"Stations will appear here (service currently available only in Abuja)"</p> }.into_any(),
+                        None => view! { <p class="status-msg">"Stations will appear here " <span class="status-msg-region">"(service currently available only in Abuja)"</span></p> }.into_any(),
                     }}
                 </div>
 
-                <div class="fuel-details-card">
+                <div class="fuel-details-card" node_ref=details_ref>
                     {move || match selected_station.get() {
                         Some(s) => {
                             let map_url = format!("https://www.google.com/maps/search/?api=1&query={},{}", s.latitude, s.longitude);

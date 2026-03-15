@@ -154,3 +154,22 @@ pub async fn fetch_station_notifications(token: String) -> Result<Vec<DashboardN
         Err(format!("Server error: {}", resp.status()))
     }
 }
+
+pub async fn mark_station_notification_read(notification_id: String, token: String) -> Result<(), String> {
+    let base_url = BaseUrl::get_base_url();
+    let url = format!(
+        "{base_url}/api/v1/stations/dashboard/notifications/{notification_id}/read"
+    );
+
+    let resp = Request::patch(&url)
+        .header("Authorization", &format!("Bearer {token}"))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if resp.ok() {
+        Ok(())
+    } else {
+        Err(format!("Server error: {}", resp.status()))
+    }
+}

@@ -1,11 +1,12 @@
 use gloo_net::http::Request;
 use leptos::prelude::*;
 use leptos_router::hooks::use_navigate;
+use std::collections::HashSet;
 
 use crate::pages::fetch_nearest_stations_dto::Station;
 use crate::pages::stations::dashboard::commodity_card::CommodityCard;
 use crate::pages::stations::dashboard::utils::get_token;
-use crate::pages::stations::dto::fetch_station_notifications;
+use crate::pages::stations::dto::{fetch_station_notifications, mark_station_notification_read};
 use crate::utils::base_url::BaseUrl;
 
 #[component]
@@ -30,6 +31,29 @@ pub fn StationDashboard() -> impl IntoView {
     let notifications_resource = LocalResource::new(|| async move {
         let token = get_token();
         fetch_station_notifications(token).await
+    });
+
+    let hidden_notification_ids = RwSignal::new(HashSet::<String>::new());
+
+    let mark_notification_action = Action::new_local(move |notification_id: &String| {
+        let id = notification_id.clone();
+        async move {
+            let token = get_token();
+            mark_station_notification_read(id.clone(), token)
+                .await
+                .map(|_| id)
+        }
+    });
+
+    Effect::new(move |_| {
+        if let Some(result) = mark_notification_action.value().get() {
+            if let Ok(notification_id) = result {
+                hidden_notification_ids.update(|ids| {
+                    ids.insert(notification_id);
+                });
+                notifications_resource.refetch();
+            }
+        }
     });
 
     // Action for updating prices - remains local for WASM compatibility
@@ -64,22 +88,28 @@ pub fn StationDashboard() -> impl IntoView {
             // Notification banner — renders as soon as ready, never blocks station content
             {move || notifications_resource.get().map(|res| match res {
                 Ok(notifs) if !notifs.is_empty() => {
-                    let unread_count = notifs.iter().filter(|n| !n.is_read).count();
+                    let hidden_ids = hidden_notification_ids.get();
+                    let unread_notifs: Vec<_> = notifs
+                        .into_iter()
+                        .filter(|n| !n.is_read && !hidden_ids.contains(&n.id))
+                        .collect();
+                    let unread_count = unread_notifs.len();
+
+                    if unread_notifs.is_empty() {
+                        return view! { <></> }.into_any();
+                    }
+
                     view! {
                         <div class="notifications-panel">
                             <div class="notifications-header">
                                 <span class="bell-icon">"🔔"</span>
                                 <strong>
-                                    {if unread_count > 0 {
-                                        format!("Notifications  ({} unread)", unread_count)
-                                    } else {
-                                        "Notifications".to_string()
-                                    }}
+                                    {format!("Notifications  ({} unread)", unread_count)}
                                 </strong>
                             </div>
                             <div class="notifications-list">
                                 <For
-                                    each=move || notifs.clone()
+                                    each=move || unread_notifs.clone()
                                     key=|n| n.id.clone()
                                     children=move |notif| {
                                         let kind_class = if notif.kind == "subscription" {
@@ -88,8 +118,14 @@ pub fn StationDashboard() -> impl IntoView {
                                             "notification-item"
                                         };
                                         let read_class = if notif.is_read { "" } else { "unread" };
+                                        let notification_id = notif.id.clone();
                                         view! {
-                                            <div class=format!("{kind_class} {read_class}")>
+                                            <div
+                                                class=format!("{kind_class} {read_class}")
+                                                on:click=move |_| {
+                                                    mark_notification_action.dispatch(notification_id.clone());
+                                                }
+                                            >
                                                 <p class="notification-title">
                                                     {if !notif.is_read { "● " } else { "" }}
                                                     {notif.title.clone()}

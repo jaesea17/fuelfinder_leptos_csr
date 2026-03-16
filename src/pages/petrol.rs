@@ -155,6 +155,43 @@ pub fn Home_Petrol() -> impl IntoView {
                                     <h2>{s.name}</h2>
                                     <div class="fuel-info-section">
                                         <div class="fuel-info-item"><strong>"Price(₦): "</strong> {price}</div>
+                                        {if is_discount_enabled {
+                                            view! {
+                                                <div class="fuel-info-item" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                                                    <div>
+                                                        <strong>"Discount: "</strong>
+                                                        {format!("{}% available", discount_percentage)}
+                                                    </div>
+                                                    <button
+                                                        class="fuel-locate-button"
+                                                        style="width: auto; margin-top: 0;"
+                                                        disabled=move || discount_code_action.pending().get()
+                                                        on:click=move |_| {
+                                                            discount_code_action.dispatch(selected_station_id.clone());
+                                                        }
+                                                    >
+                                                        {move || if discount_code_action.pending().get() {
+                                                            "Generating code..."
+                                                        } else {
+                                                            "Generate Discount Code"
+                                                        }}
+                                                    </button>
+
+                                                    {move || discount_result.clone().map(|code| view! {
+                                                        <div class="fuel-info-item" style="width: 100%; margin-top: 8px; background: #f6fff7; padding: 10px; border-radius: 8px;">
+                                                            <div><strong>"Code: "</strong>{code.code.clone()}</div>
+                                                            <div style="margin-top: 6px;">"Present this code to redeem your discount, code expires in 24hrs"</div>
+                                                        </div>
+                                                    })}
+
+                                                    {move || discount_code_action.value().get().and_then(|res| res.err()).map(|err| view! {
+                                                        <small class="error-message" style="width: 100%; margin-top: 8px;">{err}</small>
+                                                    })}
+                                                </div>
+                                            }.into_any()
+                                        } else {
+                                            view! { <></> }.into_any()
+                                        }}
                                         <div class="fuel-info-item"><strong>"Address: "</strong> {s.address}</div>
                                         <div class="fuel-info-item">
                                             <strong>"Directions: "</strong>
@@ -165,46 +202,6 @@ pub fn Home_Petrol() -> impl IntoView {
                                         <div class="fuel-info-item"><strong>"Distance: "</strong> {format!("{:.2}km", s.distance.unwrap_or_else(|| 0.0))}</div>
                                     </div>
 
-                                    {if is_discount_enabled {
-                                        view! {
-                                            <div class="fuel-info-section" style="margin-top: 12px; border-top: 1px solid #eee; padding-top: 12px;">
-                                                <div class="fuel-info-item">
-                                                    <strong>"Discount: "</strong>
-                                                    {format!("{}% available", discount_percentage)}
-                                                </div>
-                                                <button
-                                                    class="fuel-locate-button"
-                                                    style="width: 100%; margin-top: 8px;"
-                                                    disabled=move || discount_code_action.pending().get()
-                                                    on:click=move |_| {
-                                                        discount_code_action.dispatch(selected_station_id.clone());
-                                                    }
-                                                >
-                                                    {move || if discount_code_action.pending().get() {
-                                                        "Generating code..."
-                                                    } else {
-                                                        "Generate Discount Code"
-                                                    }}
-                                                </button>
-
-                                                {move || discount_result.clone().map(|code| view! {
-                                                    <div class="fuel-info-item" style="margin-top: 10px; background: #f6fff7; padding: 10px; border-radius: 8px;">
-                                                        <div><strong>"Code: "</strong>{code.code.clone()}</div>
-                                                        <div><strong>"Created: "</strong>{code.created_at.clone()}</div>
-                                                        <div><strong>"Expires: "</strong>{code.expires_at.clone()}</div>
-                                                        <div><strong>"Discount: "</strong>{format!("{}%", code.discount_percentage)}</div>
-                                                        <div><strong>"New Price: "</strong>{format!("₦{}", code.discounted_price)}</div>
-                                                    </div>
-                                                })}
-
-                                                {move || discount_code_action.value().get().and_then(|res| res.err()).map(|err| view! {
-                                                    <small class="error-message">{err}</small>
-                                                })}
-                                            </div>
-                                        }.into_any()
-                                    } else {
-                                        view! { <></> }.into_any()
-                                    }}
                                 </div>
                             }.into_any()
                         },

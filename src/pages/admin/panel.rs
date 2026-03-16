@@ -117,7 +117,10 @@ fn AdminDashboardView(is_logged_in: RwSignal<bool>) -> impl IntoView {
     let renew_days = RwSignal::new("30".to_string());
     let renew_error = RwSignal::new(None::<String>);
     let discount_error = RwSignal::new(None::<String>);
-    let discount_percentage = RwSignal::new("5".to_string());
+    let expanded_station_id = RwSignal::new(None::<String>);
+    let enabling_commodity_id = RwSignal::new(None::<String>);
+    let enable_percentage_input = RwSignal::new("5".to_string());
+    let enable_submit_commodity_id = RwSignal::new(None::<String>);
 
     // Reactive: re-fetches whenever active_filter or refresh_trigger changes
     let stations_resource = LocalResource::new(move || {
@@ -177,9 +180,14 @@ fn AdminDashboardView(is_logged_in: RwSignal<bool>) -> impl IntoView {
             match result {
                 Ok(_) => {
                     discount_error.set(None);
+                    enable_submit_commodity_id.set(None);
+                    enabling_commodity_id.set(None);
                     refresh_trigger.update(|v| *v += 1);
                 }
-                Err(e) => discount_error.set(Some(e)),
+                Err(e) => {
+                    enable_submit_commodity_id.set(None);
+                    discount_error.set(Some(e));
+                }
             }
         }
     });
@@ -292,12 +300,6 @@ fn AdminDashboardView(is_logged_in: RwSignal<bool>) -> impl IntoView {
                                     <tr>
                                         <th>"Name"</th>
                                         <th>"Address"</th>
-                                        <th>"Email"</th>
-                                        <th>"Type"</th>
-                                        <th>"Status"</th>
-                                        <th>"Expires"</th>
-                                        <th>"Discount"</th>
-                                        <th>"Discount %"</th>
                                         <th>"Action"</th>
                                     </tr>
                                 </thead>
@@ -324,82 +326,176 @@ fn AdminDashboardView(is_logged_in: RwSignal<bool>) -> impl IntoView {
                                             };
 
                                             let commodity_id = station.commodity_id.clone();
+                                            let commodity_id_for_input = commodity_id.clone();
                                             let commodity_id_for_enable_disabled = commodity_id.clone();
                                             let commodity_id_for_enable_click = commodity_id.clone();
+                                            let commodity_id_for_enable_label = commodity_id.clone();
                                             let commodity_id_for_disable_disabled = commodity_id.clone();
                                             let commodity_id_for_disable_click = commodity_id.clone();
                                             let discount_enabled = station.discount_enabled.unwrap_or(false);
                                             let current_discount = station.discount_percentage.unwrap_or(5);
+                                            let station_id_for_toggle = station.id.clone();
+                                            let station_id_for_label = station.id.clone();
+                                            let station_id_for_panel = station.id.clone();
+                                            let expanded_for_toggle = expanded_station_id;
+                                            let expanded_for_label = expanded_station_id;
+                                            let expanded_for_panel = expanded_station_id;
+                                            let station_email = station.email.clone();
+                                            let station_type = station.station_type.clone();
+                                            let station_created_count = station.discount_created_count;
+                                            let station_redeemed_count = station.discount_redeemed_count;
 
                                             view! {
                                                 <tr>
                                                     <td data-label="Name">{station.name.clone()}</td>
                                                     <td data-label="Address" class="station-address">{station.address.clone()}</td>
-                                                    <td data-label="Email">{station.email.clone()}</td>
-                                                    <td data-label="Type">{station.station_type.clone()}</td>
-                                                    <td data-label="Status">
-                                                        <span class=status_class>{status}</span>
-                                                    </td>
-                                                    <td data-label="Expires">{expires}</td>
-                                                    <td data-label="Discount">
-                                                        {if discount_enabled { "Enabled" } else { "Disabled" }}
-                                                    </td>
-                                                    <td data-label="Discount %">
-                                                        <input
-                                                            type="number"
-                                                            min="1"
-                                                            max="10"
-                                                            class="price-input"
-                                                            style="max-width: 90px;"
-                                                            prop:value=current_discount.to_string()
-                                                            on:input=move |ev| discount_percentage.set(event_target_value(&ev))
-                                                        />
-                                                    </td>
                                                     <td data-label="Action">
-                                                        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                                                        <div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-start;">
                                                             <button
                                                                 class="renew-button"
                                                                 on:click=move |_| {
-                                                                    renew_days.set("30".to_string());
-                                                                    renew_error.set(None);
-                                                                    renewing_station.set(Some(station_for_renew.clone()));
-                                                                }
-                                                            >
-                                                                "Renew"
-                                                            </button>
-
-                                                            <button
-                                                                class="save-button"
-                                                                disabled=move || discount_action.pending().get() || commodity_id_for_enable_disabled.is_none()
-                                                                on:click=move |_| {
-                                                                    if let Some(cid) = commodity_id_for_enable_click.clone() {
-                                                                        let percentage = discount_percentage
-                                                                            .get()
-                                                                            .parse::<i32>()
-                                                                            .ok()
-                                                                            .filter(|v| (1..=10).contains(v));
-                                                                        discount_action.dispatch((cid, true, percentage));
+                                                                    if expanded_for_toggle.get().as_deref() == Some(station_id_for_toggle.as_str()) {
+                                                                        expanded_for_toggle.set(None);
+                                                                    } else {
+                                                                        expanded_for_toggle.set(Some(station_id_for_toggle.clone()));
                                                                     }
                                                                 }
                                                             >
-                                                                "Enable"
+                                                                {move || {
+                                                                    if expanded_for_label.get().as_deref() == Some(station_id_for_label.as_str()) {
+                                                                        "Hide info"
+                                                                    } else {
+                                                                        "More info"
+                                                                    }
+                                                                }}
                                                             </button>
 
-                                                            <button
-                                                                class="cancel-button"
-                                                                disabled=move || discount_action.pending().get() || commodity_id_for_disable_disabled.is_none()
-                                                                on:click=move |_| {
-                                                                    if let Some(cid) = commodity_id_for_disable_click.clone() {
-                                                                        discount_action.dispatch((cid, false, None));
+                                                            <div
+                                                                style="padding: 6px 0 2px; gap: 8px;"
+                                                                style:display=move || {
+                                                                    if expanded_for_panel.get().as_deref() == Some(station_id_for_panel.as_str()) {
+                                                                        "grid"
+                                                                    } else {
+                                                                        "none"
                                                                     }
                                                                 }
                                                             >
-                                                                "Disable"
-                                                            </button>
+                                                                <div><strong>"Email: "</strong>{station_email.clone()}</div>
+                                                                <div><strong>"Type: "</strong>{station_type.clone()}</div>
+                                                                <div>
+                                                                    <strong>"Status: "</strong>
+                                                                    <span class=status_class>{status.clone()}</span>
+                                                                </div>
+                                                                <div><strong>"Expires: "</strong>{expires.clone()}</div>
+                                                                <div>
+                                                                    <strong>"Discount: "</strong>
+                                                                    {if discount_enabled { "Enabled" } else { "Disabled" }}
+                                                                </div>
+                                                                <div>
+                                                                    <strong>"Codes: "</strong>
+                                                                    {format!("created {}, redeemed {}", station_created_count, station_redeemed_count)}
+                                                                </div>
+
+                                                                <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top: 4px;">
+                                                                    <button
+                                                                        class="renew-button"
+                                                                        on:click=move |_| {
+                                                                            renew_days.set("30".to_string());
+                                                                            renew_error.set(None);
+                                                                            renewing_station.set(Some(station_for_renew.clone()));
+                                                                        }
+                                                                    >
+                                                                        "Renew"
+                                                                    </button>
+
+                                                                    <button
+                                                                        class="save-button"
+                                                                        disabled=move || discount_action.pending().get() || commodity_id_for_enable_disabled.is_none()
+                                                                        on:click=move |_| {
+                                                                            if let Some(cid) = commodity_id_for_enable_click.clone() {
+                                                                                let selecting_this = enabling_commodity_id
+                                                                                    .get()
+                                                                                    .as_deref()
+                                                                                    == Some(cid.as_str());
+
+                                                                                if !selecting_this {
+                                                                                    enabling_commodity_id.set(Some(cid));
+                                                                                    enable_percentage_input.set(current_discount.to_string());
+                                                                                    return;
+                                                                                }
+
+                                                                                let percentage = enable_percentage_input
+                                                                                    .get()
+                                                                                    .parse::<i32>()
+                                                                                    .ok()
+                                                                                    .filter(|v| (1..=10).contains(v));
+
+                                                                                if percentage.is_some() {
+                                                                                    enable_submit_commodity_id.set(Some(cid.clone()));
+                                                                                    discount_action.dispatch((cid, true, percentage));
+                                                                                } else {
+                                                                                    discount_error.set(Some("Percentage must be an integer between 1 and 10".to_string()));
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    >
+                                                                        {move || {
+                                                                            if let Some(cid) = commodity_id_for_enable_label.clone() {
+                                                                                if discount_action.pending().get() && enable_submit_commodity_id.get().as_deref() == Some(cid.as_str()) {
+                                                                                    "Enabling..."
+                                                                                } else {
+                                                                                    "Enable"
+                                                                                }
+                                                                            } else {
+                                                                                "Enable"
+                                                                            }
+                                                                        }}
+                                                                    </button>
+
+                                                                    <button
+                                                                        class="cancel-button"
+                                                                        disabled=move || discount_action.pending().get() || commodity_id_for_disable_disabled.is_none()
+                                                                        on:click=move |_| {
+                                                                            if let Some(cid) = commodity_id_for_disable_click.clone() {
+                                                                                discount_action.dispatch((cid, false, None));
+                                                                                enabling_commodity_id.set(None);
+                                                                            }
+                                                                        }
+                                                                    >
+                                                                        "Disable"
+                                                                    </button>
+                                                                </div>
+
+                                                                {move || {
+                                                                    if let Some(cid) = commodity_id_for_input.clone() {
+                                                                        if enabling_commodity_id.get().as_deref() == Some(cid.as_str()) {
+                                                                            return view! {
+                                                                                <div style="display: flex; gap: 8px; align-items: center; margin-top: 6px;">
+                                                                                    <label><strong>"Discount %"</strong></label>
+                                                                                    <input
+                                                                                        type="number"
+                                                                                        min="1"
+                                                                                        max="10"
+                                                                                        class="price-input"
+                                                                                        style="max-width: 110px;"
+                                                                                        prop:value=move || enable_percentage_input.get()
+                                                                                        on:input=move |ev| enable_percentage_input.set(event_target_value(&ev))
+                                                                                    />
+                                                                                    <small>"Click Enable again to confirm"</small>
+                                                                                </div>
+                                                                            }
+                                                                                .into_any();
+                                                                        }
+                                                                    }
+
+                                                                    view! { <span></span> }.into_any()
+                                                                }}
+                                                            </div>
                                                         </div>
                                                     </td>
                                                 </tr>
                                             }
+                                                .into_any()
                                         }
                                     />
                                 </tbody>

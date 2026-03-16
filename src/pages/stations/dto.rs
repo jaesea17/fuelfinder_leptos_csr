@@ -59,6 +59,37 @@ struct ApiErrorBody {
     message: String,
 }
 
+fn map_discount_redeem_error(status: u16, message: Option<&str>) -> String {
+    let raw = message.unwrap_or_default().trim();
+    let normalized = raw.to_ascii_lowercase();
+
+    if normalized.contains("discount code not found") {
+        return "That discount code was not found. Please check the code and try again.".to_string();
+    }
+
+    if normalized.contains("does not belong to your station") {
+        return "This discount code belongs to another station and cannot be redeemed here.".to_string();
+    }
+
+    if normalized.contains("code is expired") {
+        return "This discount code has expired and can no longer be redeemed.".to_string();
+    }
+
+    if normalized.contains("already redeemed") {
+        return "This discount code has already been redeemed.".to_string();
+    }
+
+    match status {
+        400 => "Invalid discount code. Please review and try again.".to_string(),
+        401 | 403 => "Your session may have expired. Please sign in again.".to_string(),
+        404 => "That discount code was not found. Please check and try again.".to_string(),
+        409 => "This discount code has already been used.".to_string(),
+        500..=599 => "Couldn’t redeem the discount right now. Please try again shortly.".to_string(),
+        _ if !raw.is_empty() => raw.to_string(),
+        _ => "Unable to redeem discount code right now. Please try again.".to_string(),
+    }
+}
+
 pub async fn register_station(payload: RegisterFormData, lat: f64, lon:f64) -> Result<Station, String> {
     let BASE_URL = BaseUrl::get_base_url();
     let url = format!("{BASE_URL}/api/v1/auth/signup"); // Added "stations" to match typical API
@@ -201,17 +232,24 @@ pub async fn redeem_discount_code(
         .header("Authorization", &format!("Bearer {token}"))
         .header("Content-Type", "application/json")
         .json(&payload)
-        .map_err(|e| e.to_string())?
+        .map_err(|_| "Couldn’t prepare discount redemption request. Please try again.".to_string())?
         .send()
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|_| "Network issue while redeeming code. Check your connection and retry.".to_string())?;
 
     if resp.ok() {
         resp.json::<RedeemDiscountCodeResponse>()
             .await
-            .map_err(|e| e.to_string())
+            .map_err(|_| "Redemption completed, but we couldn’t read the response. Please refresh and try again.".to_string())
     } else {
-        Err(format!("Server error: {}", resp.status()))
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        let parsed_message = serde_json::from_str::<ApiErrorBody>(&text)
+            .ok()
+            .map(|b| b.message)
+            .or_else(|| if text.trim().is_empty() { None } else { Some(text) });
+
+        Err(map_discount_redeem_error(status, parsed_message.as_deref()))
     }
 }
 

@@ -4,6 +4,46 @@ use serde::{Deserialize, Serialize};
 
 use crate::utils::base_url::BaseUrl;
 
+#[derive(Deserialize)]
+struct ApiErrorBody {
+    message: String,
+}
+
+fn map_discount_generation_error(status: u16, message: Option<&str>) -> String {
+    let raw = message.unwrap_or_default().trim();
+    let normalized = raw.to_ascii_lowercase();
+
+    if normalized.contains("daily discount code limit reached") {
+        return "You’ve already generated a discount code for this station today. Please try again tomorrow.".to_string();
+    }
+
+    if normalized.contains("discount is not enabled") {
+        return "Discounts are not available for this station right now.".to_string();
+    }
+
+    if normalized.contains("discount percentage is not configured") {
+        return "Discount is temporarily unavailable. Please try again later.".to_string();
+    }
+
+    if normalized.contains("unable to determine caller ip") {
+        return "We couldn’t verify your request right now. Please retry.".to_string();
+    }
+
+    if normalized.contains("not found") {
+        return "Station details were not found. Please refresh and try again.".to_string();
+    }
+
+    match status {
+        400 => "Unable to generate discount code. Please check your request and try again.".to_string(),
+        401 | 403 => "You are not allowed to generate a discount code right now.".to_string(),
+        404 => "Station details were not found. Please refresh and try again.".to_string(),
+        429 => "Too many attempts. Please wait a bit and try again.".to_string(),
+        500..=599 => "The server is busy right now. Please try again in a moment.".to_string(),
+        _ if !raw.is_empty() => raw.to_string(),
+        _ => "Couldn’t generate a discount code right now. Please try again.".to_string(),
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Commodity {
     pub id: String,
@@ -97,22 +137,23 @@ pub async fn generate_discount_code(station_id: String) -> Result<DiscountCodeRe
     let resp = Request::post(&url)
         .header("Content-Type", "application/json")
         .json(&payload)
-        .map_err(|e| e.to_string())?
+        .map_err(|_| "Couldn’t prepare your discount request. Please try again.".to_string())?
         .send()
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|_| "Network issue while generating discount code. Check your connection and retry.".to_string())?;
 
     if resp.ok() {
         resp.json::<DiscountCodeResponse>()
             .await
-            .map_err(|e| e.to_string())
+            .map_err(|_| "Discount code was created, but we couldn’t read the response. Please try again.".to_string())
     } else {
         let status = resp.status();
         let text = resp.text().await.unwrap_or_default();
-        if text.is_empty() {
-            Err(format!("Server error: {status}"))
-        } else {
-            Err(text)
-        }
+        let parsed_message = serde_json::from_str::<ApiErrorBody>(&text)
+            .ok()
+            .map(|b| b.message)
+            .or_else(|| if text.trim().is_empty() { None } else { Some(text) });
+
+        Err(map_discount_generation_error(status, parsed_message.as_deref()))
     }
 }

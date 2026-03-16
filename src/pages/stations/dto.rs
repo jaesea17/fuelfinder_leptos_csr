@@ -1,6 +1,5 @@
 use gloo_net::http::Request;
 use serde::{Deserialize, Serialize};
-use leptos::prelude::*;
 
 use crate::{pages::fetch_nearest_stations_dto::Station, utils::base_url};
 use crate::utils::base_url::BaseUrl;
@@ -13,6 +12,22 @@ pub struct DashboardNotification {
     pub kind: String,
     pub is_read: bool,
     pub created_at: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct RedeemDiscountCodeResponse {
+    pub message: String,
+    pub code: Option<String>,
+    pub created_at: Option<String>,
+    pub expires_at: Option<String>,
+    pub discount_percentage: Option<i32>,
+    pub discounted_price: Option<i32>,
+    pub is_expired: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct StationDiscountStats {
+    pub redeemed_codes: i64,
 }
 
 
@@ -169,6 +184,51 @@ pub async fn mark_station_notification_read(notification_id: String, token: Stri
 
     if resp.ok() {
         Ok(())
+    } else {
+        Err(format!("Server error: {}", resp.status()))
+    }
+}
+
+pub async fn redeem_discount_code(
+    token: String,
+    code: String,
+) -> Result<RedeemDiscountCodeResponse, String> {
+    let base_url = BaseUrl::get_base_url();
+    let url = format!("{base_url}/api/v1/discounts/redeem");
+    let payload = serde_json::json!({ "code": code });
+
+    let resp = Request::post(&url)
+        .header("Authorization", &format!("Bearer {token}"))
+        .header("Content-Type", "application/json")
+        .json(&payload)
+        .map_err(|e| e.to_string())?
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if resp.ok() {
+        resp.json::<RedeemDiscountCodeResponse>()
+            .await
+            .map_err(|e| e.to_string())
+    } else {
+        Err(format!("Server error: {}", resp.status()))
+    }
+}
+
+pub async fn fetch_station_discount_stats(token: String) -> Result<StationDiscountStats, String> {
+    let base_url = BaseUrl::get_base_url();
+    let url = format!("{base_url}/api/v1/discounts/station/stats");
+
+    let resp = Request::get(&url)
+        .header("Authorization", &format!("Bearer {token}"))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if resp.ok() {
+        resp.json::<StationDiscountStats>()
+            .await
+            .map_err(|e| e.to_string())
     } else {
         Err(format!("Server error: {}", resp.status()))
     }

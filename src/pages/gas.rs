@@ -1,4 +1,6 @@
-use crate::pages::fetch_nearest_stations_dto::{Station, fetch_closests};
+use crate::pages::fetch_nearest_stations_dto::{
+    DiscountCodeResponse, Station, fetch_closests, generate_discount_code,
+};
 use crate::utils::get_stations_imgs::STATION_IMAGES;
 use crate::utils::get_gps_location::locate;
 use crate::utils::validate_boundary;
@@ -20,6 +22,10 @@ pub fn Home_Gas() -> impl IntoView {
 
     let stations_result = get_stations_action.value();
     let selected_station = RwSignal::new(None::<Station>);
+    let discount_code_action = Action::new_local(move |station_id: &String| {
+        let station_id = station_id.clone();
+        async move { generate_discount_code(station_id).await }
+    });
     let details_ref = NodeRef::<leptos::html::Div>::new();
     let has_scrolled = RwSignal::new(false);
 
@@ -124,9 +130,33 @@ pub fn Home_Gas() -> impl IntoView {
                             let map_url = format!("https://www.google.com/maps/search/?api=1&query={},{}", s.latitude, s.longitude);
                             
                             // FIX 2: Safely access commodities
-                            let price = s.commodities.first()
+                            let selected_station_id = s.id.clone();
+                            let selected_station_name = s.name.clone();
+                            let first_commodity = s.commodities.first().cloned();
+
+                            let price = first_commodity.as_ref()
                                 .map(|c| format!("{}", c.price))
                                 .unwrap_or_else(|| "N/A".to_string());
+
+                            let is_discount_enabled = first_commodity
+                                .as_ref()
+                                .and_then(|c| c.discount_enabled)
+                                .unwrap_or(false);
+                            let discount_percentage = first_commodity
+                                .as_ref()
+                                .and_then(|c| c.discount_percentage)
+                                .unwrap_or(0);
+
+                            let discount_result = discount_code_action
+                                .value()
+                                .get()
+                                .and_then(|res| {
+                                    res.ok().filter(|code: &DiscountCodeResponse| {
+                                        code.code
+                                            .to_ascii_uppercase()
+                                            .starts_with(&selected_station_name.to_ascii_uppercase().chars().filter(|c| c.is_ascii_alphanumeric()).take(2).collect::<String>())
+                                    })
+                                });
 
                             view! {
                                 <div class="fuel-details-content">
@@ -142,6 +172,47 @@ pub fn Home_Gas() -> impl IntoView {
                                         </div>
                                         <div class="fuel-info-item"><strong>"Distance: "</strong> {format!("{:.2}km", s.distance.unwrap_or_else(|| 0.0))}</div>
                                     </div>
+
+                                    {if is_discount_enabled {
+                                        view! {
+                                            <div class="fuel-info-section" style="margin-top: 12px; border-top: 1px solid #eee; padding-top: 12px;">
+                                                <div class="fuel-info-item">
+                                                    <strong>"Discount: "</strong>
+                                                    {format!("{}% available", discount_percentage)}
+                                                </div>
+                                                <button
+                                                    class="fuel-locate-button"
+                                                    style="width: 100%; margin-top: 8px;"
+                                                    disabled=move || discount_code_action.pending().get()
+                                                    on:click=move |_| {
+                                                        discount_code_action.dispatch(selected_station_id.clone());
+                                                    }
+                                                >
+                                                    {move || if discount_code_action.pending().get() {
+                                                        "Generating code..."
+                                                    } else {
+                                                        "Generate Discount Code"
+                                                    }}
+                                                </button>
+
+                                                {move || discount_result.clone().map(|code| view! {
+                                                    <div class="fuel-info-item" style="margin-top: 10px; background: #f6fff7; padding: 10px; border-radius: 8px;">
+                                                        <div><strong>"Code: "</strong>{code.code.clone()}</div>
+                                                        <div><strong>"Created: "</strong>{code.created_at.clone()}</div>
+                                                        <div><strong>"Expires: "</strong>{code.expires_at.clone()}</div>
+                                                        <div><strong>"Discount: "</strong>{format!("{}%", code.discount_percentage)}</div>
+                                                        <div><strong>"New Price: "</strong>{format!("₦{}", code.discounted_price)}</div>
+                                                    </div>
+                                                })}
+
+                                                {move || discount_code_action.value().get().and_then(|res| res.err()).map(|err| view! {
+                                                    <small class="error-message">{err}</small>
+                                                })}
+                                            </div>
+                                        }.into_any()
+                                    } else {
+                                        view! { <></> }.into_any()
+                                    }}
                                 </div>
                             }.into_any()
                         },

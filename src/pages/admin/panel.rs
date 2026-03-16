@@ -2,8 +2,8 @@ use leptos::prelude::*;
 use wasm_bindgen::JsCast;
 
 use crate::pages::admin::dto::{
-    StationWithSubscription, clear_admin_password, fetch_admin_stations, get_admin_password,
-    renew_station_subscription, set_admin_password,
+    StationWithSubscription, clear_admin_password, fetch_admin_stations, fetch_discount_stats,
+    get_admin_password, renew_station_subscription, set_admin_password, update_station_discount,
 };
 
 // ── Top-level component ──────────────────────────────────────────────────────
@@ -116,6 +116,8 @@ fn AdminDashboardView(is_logged_in: RwSignal<bool>) -> impl IntoView {
     let renewing_station: RwSignal<Option<StationWithSubscription>> = RwSignal::new(None);
     let renew_days = RwSignal::new("30".to_string());
     let renew_error = RwSignal::new(None::<String>);
+    let discount_error = RwSignal::new(None::<String>);
+    let discount_percentage = RwSignal::new("5".to_string());
 
     // Reactive: re-fetches whenever active_filter or refresh_trigger changes
     let stations_resource = LocalResource::new(move || {
@@ -124,6 +126,14 @@ fn AdminDashboardView(is_logged_in: RwSignal<bool>) -> impl IntoView {
         async move {
             let pw = get_admin_password();
             fetch_admin_stations(pw, filter).await
+        }
+    });
+
+    let discount_stats_resource = LocalResource::new(move || {
+        let _r = refresh_trigger.get();
+        async move {
+            let pw = get_admin_password();
+            fetch_discount_stats(pw).await
         }
     });
 
@@ -136,6 +146,19 @@ fn AdminDashboardView(is_logged_in: RwSignal<bool>) -> impl IntoView {
         }
     });
 
+    let discount_action = Action::new_local(
+        move |(commodity_id, enabled, percentage): &(String, bool, Option<i32>)| {
+            let commodity_id = commodity_id.clone();
+            let enabled = *enabled;
+            let percentage = *percentage;
+
+            async move {
+                let pw = get_admin_password();
+                update_station_discount(commodity_id, enabled, percentage, pw).await
+            }
+        },
+    );
+
     Effect::new(move |_| {
         if let Some(result) = renew_action.value().get() {
             match result {
@@ -145,6 +168,18 @@ fn AdminDashboardView(is_logged_in: RwSignal<bool>) -> impl IntoView {
                     refresh_trigger.update(|v| *v += 1);
                 }
                 Err(e) => renew_error.set(Some(e)),
+            }
+        }
+    });
+
+    Effect::new(move |_| {
+        if let Some(result) = discount_action.value().get() {
+            match result {
+                Ok(_) => {
+                    discount_error.set(None);
+                    refresh_trigger.update(|v| *v += 1);
+                }
+                Err(e) => discount_error.set(Some(e)),
             }
         }
     });
@@ -233,7 +268,23 @@ fn AdminDashboardView(is_logged_in: RwSignal<bool>) -> impl IntoView {
                                         .to_string()}
                                 </strong>
                             </div>
+                            {move || discount_stats_resource.get().and_then(|res| res.ok()).map(|stats| view! {
+                                <>
+                                    <div class="admin-summary-card">
+                                        <span class="admin-summary-label">"Discount Codes Created"</span>
+                                        <strong class="admin-summary-value">{stats.created_codes.to_string()}</strong>
+                                    </div>
+                                    <div class="admin-summary-card">
+                                        <span class="admin-summary-label">"Discount Codes Redeemed"</span>
+                                        <strong class="admin-summary-value">{stats.redeemed_codes.to_string()}</strong>
+                                    </div>
+                                </>
+                            })}
                         </div>
+
+                        {move || discount_error.get().map(|e| view! {
+                            <p class="error-message">{e}</p>
+                        })}
 
                         <div class="stations-table-wrapper">
                             <table class="stations-table">
@@ -245,6 +296,8 @@ fn AdminDashboardView(is_logged_in: RwSignal<bool>) -> impl IntoView {
                                         <th>"Type"</th>
                                         <th>"Status"</th>
                                         <th>"Expires"</th>
+                                        <th>"Discount"</th>
+                                        <th>"Discount %"</th>
                                         <th>"Action"</th>
                                     </tr>
                                 </thead>
@@ -270,6 +323,14 @@ fn AdminDashboardView(is_logged_in: RwSignal<bool>) -> impl IntoView {
                                                 _          => "status-badge status-none",
                                             };
 
+                                            let commodity_id = station.commodity_id.clone();
+                                            let commodity_id_for_enable_disabled = commodity_id.clone();
+                                            let commodity_id_for_enable_click = commodity_id.clone();
+                                            let commodity_id_for_disable_disabled = commodity_id.clone();
+                                            let commodity_id_for_disable_click = commodity_id.clone();
+                                            let discount_enabled = station.discount_enabled.unwrap_or(false);
+                                            let current_discount = station.discount_percentage.unwrap_or(5);
+
                                             view! {
                                                 <tr>
                                                     <td data-label="Name">{station.name.clone()}</td>
@@ -280,17 +341,62 @@ fn AdminDashboardView(is_logged_in: RwSignal<bool>) -> impl IntoView {
                                                         <span class=status_class>{status}</span>
                                                     </td>
                                                     <td data-label="Expires">{expires}</td>
+                                                    <td data-label="Discount">
+                                                        {if discount_enabled { "Enabled" } else { "Disabled" }}
+                                                    </td>
+                                                    <td data-label="Discount %">
+                                                        <input
+                                                            type="number"
+                                                            min="1"
+                                                            max="10"
+                                                            class="price-input"
+                                                            style="max-width: 90px;"
+                                                            prop:value=current_discount.to_string()
+                                                            on:input=move |ev| discount_percentage.set(event_target_value(&ev))
+                                                        />
+                                                    </td>
                                                     <td data-label="Action">
-                                                        <button
-                                                            class="renew-button"
-                                                            on:click=move |_| {
-                                                                renew_days.set("30".to_string());
-                                                                renew_error.set(None);
-                                                                renewing_station.set(Some(station_for_renew.clone()));
-                                                            }
-                                                        >
-                                                            "Renew"
-                                                        </button>
+                                                        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                                                            <button
+                                                                class="renew-button"
+                                                                on:click=move |_| {
+                                                                    renew_days.set("30".to_string());
+                                                                    renew_error.set(None);
+                                                                    renewing_station.set(Some(station_for_renew.clone()));
+                                                                }
+                                                            >
+                                                                "Renew"
+                                                            </button>
+
+                                                            <button
+                                                                class="save-button"
+                                                                disabled=move || discount_action.pending().get() || commodity_id_for_enable_disabled.is_none()
+                                                                on:click=move |_| {
+                                                                    if let Some(cid) = commodity_id_for_enable_click.clone() {
+                                                                        let percentage = discount_percentage
+                                                                            .get()
+                                                                            .parse::<i32>()
+                                                                            .ok()
+                                                                            .filter(|v| (1..=10).contains(v));
+                                                                        discount_action.dispatch((cid, true, percentage));
+                                                                    }
+                                                                }
+                                                            >
+                                                                "Enable"
+                                                            </button>
+
+                                                            <button
+                                                                class="cancel-button"
+                                                                disabled=move || discount_action.pending().get() || commodity_id_for_disable_disabled.is_none()
+                                                                on:click=move |_| {
+                                                                    if let Some(cid) = commodity_id_for_disable_click.clone() {
+                                                                        discount_action.dispatch((cid, false, None));
+                                                                    }
+                                                                }
+                                                            >
+                                                                "Disable"
+                                                            </button>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             }

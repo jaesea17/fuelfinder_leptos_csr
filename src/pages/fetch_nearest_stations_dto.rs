@@ -9,7 +9,20 @@ pub struct Commodity {
     pub name: String,
     pub price: i32,
     pub station_id: String,
-    pub is_available: bool
+    pub is_available: bool,
+    pub discount_enabled: Option<bool>,
+    pub discount_percentage: Option<i32>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct DiscountCodeResponse {
+    pub code: String,
+    pub created_at: String,
+    pub expires_at: String,
+    pub discount_percentage: i32,
+    pub original_price: i32,
+    pub discounted_price: i32,
+    pub is_expired: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -47,5 +60,33 @@ pub async fn fetch_closests(lat:f64, lon:f64, station_type:String) -> Result<Vec
         }
         // If network failed entirely
         Err(e) => Err(format!("Network error: {}", e)),
+    }
+}
+
+pub async fn generate_discount_code(station_id: String) -> Result<DiscountCodeResponse, String> {
+    let base_url = BaseUrl::get_base_url();
+    let url = format!("{base_url}/api/v1/discounts/generate");
+    let payload = serde_json::json!({ "station_id": station_id });
+
+    let resp = Request::post(&url)
+        .header("Content-Type", "application/json")
+        .json(&payload)
+        .map_err(|e| e.to_string())?
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if resp.ok() {
+        resp.json::<DiscountCodeResponse>()
+            .await
+            .map_err(|e| e.to_string())
+    } else {
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        if text.is_empty() {
+            Err(format!("Server error: {status}"))
+        } else {
+            Err(text)
+        }
     }
 }

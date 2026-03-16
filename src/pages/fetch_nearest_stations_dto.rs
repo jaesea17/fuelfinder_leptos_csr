@@ -1,4 +1,5 @@
 use gloo_net::http::Request;
+use gloo_timers::future::TimeoutFuture;
 use serde::{Deserialize, Serialize};
 
 use crate::utils::base_url::BaseUrl;
@@ -46,21 +47,46 @@ pub async fn fetch_closests(lat:f64, lon:f64, station_type:String) -> Result<Vec
     let BASE_URL = BaseUrl::get_base_url();
     let url = 
     format!("{BASE_URL}/api/v1/stations/closest?latitude={lat}&longitude={lon}&station_type={station_type}"); // Added "stations" to match typical API
-    let request = Request::get(url.as_str()).send().await;
+    let mut last_error = "Unknown error".to_string();
 
-    match request {
-        Ok(resp) => {
-            if resp.ok() {
-                // If 200-299 status code
-                resp.json::<Vec<Station>>().await.map_err(|e| format!("Parsing error: {}", e))
-            } else {
-                // If 4xx or 5xx status code
-                Err(format!("Server error: {}", resp.status()))
+    for attempt in 0..=1 {
+        let request = Request::get(url.as_str()).send().await;
+
+        match request {
+            Ok(resp) => {
+                if resp.ok() {
+                    return resp
+                        .json::<Vec<Station>>()
+                        .await
+                        .map_err(|e| format!("Parsing error: {}", e));
+                }
+
+                let status = resp.status();
+                last_error = format!("Server error: {status}");
+
+                // Retry once for transient availability issues (cold-start / gateway).
+                if attempt == 0 && (status == 503 || status == 502 || status == 504) {
+                    TimeoutFuture::new(700).await;
+                    continue;
+                }
+
+                return Err(last_error);
+            }
+            Err(e) => {
+                last_error = format!("Network error: {}", e);
+
+                // Retry once for transient network startup issues.
+                if attempt == 0 {
+                    TimeoutFuture::new(700).await;
+                    continue;
+                }
+
+                return Err(last_error);
             }
         }
-        // If network failed entirely
-        Err(e) => Err(format!("Network error: {}", e)),
     }
+
+    Err(last_error)
 }
 
 pub async fn generate_discount_code(station_id: String) -> Result<DiscountCodeResponse, String> {

@@ -518,6 +518,7 @@ dependencies = [
  "console_log",
  "futures",
  "gloo-net",
+ "gloo-timers",
  "leptos",
  "leptos-use",
  "leptos_meta",

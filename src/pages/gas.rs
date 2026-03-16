@@ -117,7 +117,7 @@ pub fn Home_Gas() -> impl IntoView {
                                  view! { <p class="error-msg">{format!("Oops! {e}")}</p> }.into_any()
                             } 
                             else {
-                                view! { <p class="error-msg">{format!("Oops! something went wrong")}</p> }.into_any()
+                                view! { <p class="error-msg">{format!("Oops! something went wrong, give some seconds, refresh and retry")}</p> }.into_any()
                             }
                         },
                         None => view! { <p class="status-msg">"NB: Allow this app use your current location when prompted (" <span class="status-msg-region">"service currently available only in Abuja"</span>")"</p> }.into_any(),

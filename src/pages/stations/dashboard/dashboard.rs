@@ -108,57 +108,6 @@ pub fn StationDashboard() -> impl IntoView {
 
     view! {
         <div class="station-dashboard">
-            <div class="notifications-panel" style="margin-bottom: 12px;">
-                <div class="notifications-header">
-                    <span class="bell-icon">"🎟️"</span>
-                    <strong>"Discount Code Redemption"</strong>
-                </div>
-                <div class="notifications-list" style="display: grid; gap: 8px;">
-                    {move || discount_stats_resource.get().map(|res| match res {
-                        Ok(stats) => view! {
-                            <p class="notification-body">{format!("Total redeemed codes: {}", stats.redeemed_codes)}</p>
-                        }.into_any(),
-                        Err(_) => view! { <></> }.into_any(),
-                    })}
-
-                    <input
-                        class="price-input"
-                        placeholder="Enter customer discount code"
-                        prop:value=move || redeem_code_input.get()
-                        on:input=move |ev| redeem_code_input.set(event_target_value(&ev).to_ascii_uppercase())
-                    />
-                    <button
-                        class="save-button"
-                        disabled=move || redeem_action.pending().get() || redeem_code_input.get().trim().is_empty()
-                        on:click=move |_| {
-                            redeem_action.dispatch(redeem_code_input.get());
-                        }
-                    >
-                        {move || if redeem_action.pending().get() { "Redeeming..." } else { "Redeem Code" }}
-                    </button>
-
-                    {move || redeem_action.value().get().map(|res| match res {
-                        Ok(resp) => {
-                            let created = resp.created_at.clone();
-                            let expires = resp.expires_at.clone();
-                            let percentage = resp.discount_percentage;
-                            let discounted = resp.discounted_price;
-
-                            view! {
-                            <div class="notification-item subscription-notice" style="cursor: default;">
-                                <p class="notification-title">{resp.message}</p>
-                                {created.map(|v| view! { <p class="notification-body">{format!("Created: {}", v)}</p> })}
-                                {expires.map(|v| view! { <p class="notification-body">{format!("Expires: {}", v)}</p> })}
-                                {percentage.map(|v| view! { <p class="notification-body">{format!("Discount: {}%", v)}</p> })}
-                                {discounted.map(|v| view! { <p class="notification-body">{format!("Sell at: ₦{}", v)}</p> })}
-                            </div>
-                        }.into_any()
-                        },
-                        Err(err) => view! { <small class="error-message">{err}</small> }.into_any(),
-                    })}
-                </div>
-            </div>
-
             // Notification banner — renders as soon as ready, never blocks station content
             {move || notifications_resource.get().map(|res| match res {
                 Ok(notifs) if !notifs.is_empty() => {
@@ -234,6 +183,58 @@ pub fn StationDashboard() -> impl IntoView {
                                     }
                                 }
                             />
+                        </div>
+
+                        <div class="redeem-section">
+                            <div class="redeem-header">
+                                <span class="bell-icon">"🎟️"</span>
+                                <strong>"Discount Code Redemption"</strong>
+                            </div>
+
+                            {move || discount_stats_resource.get().map(|res| match res {
+                                Ok(stats) => view! {
+                                    <p class="redeem-stats">{format!("Total redeemed codes: {}", stats.redeemed_codes)}</p>
+                                }.into_any(),
+                                Err(_) => view! { <></> }.into_any(),
+                            })}
+
+                            <div class="redeem-form">
+                                <input
+                                    class="price-input redeem-input"
+                                    placeholder="Enter customer discount code"
+                                    prop:value=move || redeem_code_input.get()
+                                    on:input=move |ev| redeem_code_input.set(event_target_value(&ev).to_ascii_uppercase())
+                                />
+                                <button
+                                    class="save-button redeem-button"
+                                    disabled=move || redeem_action.pending().get() || redeem_code_input.get().trim().is_empty()
+                                    on:click=move |_| {
+                                        redeem_action.dispatch(redeem_code_input.get());
+                                    }
+                                >
+                                    {move || if redeem_action.pending().get() { "Redeeming..." } else { "Redeem Code" }}
+                                </button>
+                            </div>
+
+                            {move || redeem_action.value().get().map(|res| match res {
+                                Ok(resp) => {
+                                    let created = resp.created_at.clone();
+                                    let expires = resp.expires_at.clone();
+                                    let percentage = resp.discount_percentage;
+                                    let discounted = resp.discounted_price;
+
+                                    view! {
+                                        <div class="redeem-feedback notification-item subscription-notice">
+                                            <p class="notification-title">{resp.message}</p>
+                                            {created.map(|v| view! { <p class="notification-body redeem-meta">{format!("Created: {}", v)}</p> })}
+                                            {expires.map(|v| view! { <p class="notification-body redeem-meta">{format!("Expires: {}", v)}</p> })}
+                                            {percentage.map(|v| view! { <p class="notification-body redeem-meta">{format!("Discount: {}%", v)}</p> })}
+                                            {discounted.map(|v| view! { <p class="notification-body redeem-meta">{format!("Sell at: ₦{}", v)}</p> })}
+                                        </div>
+                                    }.into_any()
+                                },
+                                Err(err) => view! { <small class="error-message">{err}</small> }.into_any(),
+                            })}
                         </div>
                     }.into_any(),
                     Err(_) => {

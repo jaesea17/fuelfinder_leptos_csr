@@ -1,7 +1,7 @@
 use crate::pages::fetch_nearest_stations_dto::{
     DiscountCodeResponse, Station, fetch_closests, generate_discount_code,
 };
-use crate::utils::get_stations_imgs::STATION_IMAGES;
+use crate::utils::get_stations_imgs::P_STATION_IMAGES;
 use crate::utils::get_gps_location::locate;
 use crate::utils::validate_boundary;
 use leptos::{logging, prelude::*};
@@ -82,7 +82,7 @@ pub fn Home_Petrol() -> impl IntoView {
                                         <ul class=grid_class>
                                             {stations.into_iter().enumerate().map(|(i, s)|{
                                                 // FIX 1: Use modulo (%) to prevent index out of bounds
-                                                let image_url = STATION_IMAGES[i % STATION_IMAGES.len()];
+                                                let image_url = P_STATION_IMAGES[i % P_STATION_IMAGES.len()];
                                                 let station = s.clone();
                                                 let station_id = s.id.clone();
                                                 

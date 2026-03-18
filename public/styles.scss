@@ -865,6 +865,29 @@ h2 {
   cursor: default;
 }
 
+.redeem-feedback-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.redeem-close-btn {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 4px 8px;
+  background: none;
+  border: none;
+  color: #64748b;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.redeem-close-btn:hover {
+  color: #334155;
+}
+
 .redeem-meta {
   font-size: 0.9rem;
 }

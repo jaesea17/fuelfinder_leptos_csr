@@ -12,6 +12,16 @@ use crate::pages::stations::dto::{
 };
 use crate::utils::base_url::BaseUrl;
 
+fn format_dashboard_date(value: &str) -> String {
+    let date_only = value.split('T').next().unwrap_or(value);
+    let mut parts = date_only.split('-');
+
+    match (parts.next(), parts.next(), parts.next()) {
+        (Some(year), Some(month), Some(day)) => format!("{}-{}-{}", day, month, year),
+        _ => value.to_string(),
+    }
+}
+
 #[component]
 pub fn StationDashboard() -> impl IntoView {
     let navigate = use_navigate();
@@ -231,8 +241,8 @@ pub fn StationDashboard() -> impl IntoView {
                                                             "✕"
                                                         </button>
                                                     </div>
-                                                    {created.map(|v| view! { <p class="notification-body redeem-meta">{format!("Created: {}", v)}</p> })}
-                                                    {expires.map(|v| view! { <p class="notification-body redeem-meta">{format!("Expires: {}", v)}</p> })}
+                                                    {created.map(|v| view! { <p class="notification-body redeem-meta">{format!("Created: {}", format_dashboard_date(&v))}</p> })}
+                                                    {expires.map(|v| view! { <p class="notification-body redeem-meta">{format!("Expires: {}", format_dashboard_date(&v))}</p> })}
                                                     {percentage.map(|v| view! { <p class="notification-body redeem-meta">{format!("Discount: {}%", v)}</p> })}
                                                     {discounted.map(|v| view! { <p class="notification-body redeem-meta">{format!("Sell at: ₦{}", v)}</p> })}
                                                 </div>

@@ -23,6 +23,103 @@ fn format_dashboard_date(value: &str) -> String {
 }
 
 #[component]
+fn RedeemSection() -> impl IntoView {
+    let discount_stats_resource = LocalResource::new(|| async move {
+        let token = get_token();
+        fetch_station_discount_stats(token).await
+    });
+
+    let redeemed_codes = RwSignal::new(None::<i64>);
+    let redeem_code_input = RwSignal::new(String::new());
+    let show_redeem_feedback = RwSignal::new(false);
+
+    let redeem_action = Action::new_local(move |code: &String| {
+        let code = code.clone();
+        async move {
+            let token = get_token();
+            redeem_discount_code(token, code).await
+        }
+    });
+
+    Effect::new(move |_| {
+        if let Some(Ok(stats)) = discount_stats_resource.get() {
+            redeemed_codes.set(Some(stats.redeemed_codes));
+        }
+    });
+
+    Effect::new(move |_| {
+        if let Some(Ok(_)) = redeem_action.value().get() {
+            show_redeem_feedback.set(true);
+            redeem_code_input.set(String::new());
+            redeemed_codes.update(|count| {
+                if let Some(value) = count.as_mut() {
+                    *value += 1;
+                }
+            });
+        }
+    });
+
+    view! {
+        <div class="redeem-section">
+            <div class="redeem-header">
+                <span class="bell-icon">"🎟️"</span>
+                <strong>"Discount Code Redemption"</strong>
+            </div>
+
+            {move || redeemed_codes.get().map(|count| view! {
+                <p class="redeem-stats">{format!("Total redeemed codes: {}", count)}</p>
+            })}
+
+            <div class="redeem-form">
+                <input
+                    class="price-input redeem-input"
+                    placeholder="Enter customer discount code"
+                    prop:value=move || redeem_code_input.get()
+                    on:input=move |ev| redeem_code_input.set(event_target_value(&ev).to_ascii_uppercase())
+                />
+                <button
+                    class="save-button redeem-button"
+                    disabled=move || redeem_action.pending().get() || redeem_code_input.get().trim().is_empty()
+                    on:click=move |_| {
+                        redeem_action.dispatch(redeem_code_input.get());
+                    }
+                >
+                    {move || if redeem_action.pending().get() { "Redeeming..." } else { "Redeem Code" }}
+                </button>
+            </div>
+
+            {move || show_redeem_feedback.get().then_some(()).and_then(|_| redeem_action.value().get()).map(|res| match res {
+                Ok(resp) => {
+                    let created = resp.created_at.clone();
+                    let expires = resp.expires_at.clone();
+                    let percentage = resp.discount_percentage;
+                    let discounted = resp.discounted_price;
+
+                    view! {
+                        <div class="redeem-feedback notification-item subscription-notice">
+                            <div class="redeem-feedback-header">
+                                <p class="notification-title">{resp.message}</p>
+                                <button
+                                    class="redeem-close-btn"
+                                    on:click=move |_| show_redeem_feedback.set(false)
+                                >
+                                    "✕"
+                                </button>
+                            </div>
+                            {created.map(|v| view! { <p class="notification-body redeem-meta">{format!("Created: {}", format_dashboard_date(&v))}</p> })}
+                            {expires.map(|v| view! { <p class="notification-body redeem-meta">{format!("Expires: {}", format_dashboard_date(&v))}</p> })}
+                            {percentage.map(|v| view! { <p class="notification-body redeem-meta">{format!("Discount: {}%", v)}</p> })}
+                            {discounted.map(|v| view! { <p class="notification-body redeem-meta">{format!("Sell at: ₦{}", v)}</p> })}
+                        </div>
+                    }.into_any()
+                },
+                Err(err) => view! { <small class="error-message">{err}</small> }.into_any(),
+            })}
+        </div>
+    }
+}
+
+#[component]
 pub fn StationDashboard() -> impl IntoView {
     let navigate = use_navigate();
 
@@ -44,28 +141,6 @@ pub fn StationDashboard() -> impl IntoView {
     let notifications_resource = LocalResource::new(|| async move {
         let token = get_token();
         fetch_station_notifications(token).await
-    });
-
-    let discount_stats_resource = LocalResource::new(|| async move {
-        let token = get_token();
-        fetch_station_discount_stats(token).await
-    });
-
-    let redeem_code_input = RwSignal::new(String::new());
-    let show_redeem_feedback = RwSignal::new(false);
-    let redeem_action = Action::new_local(move |code: &String| {
-        let code = code.clone();
-        async move {
-            let token = get_token();
-            redeem_discount_code(token, code).await
-        }
-    });
-
-    Effect::new(move |_| {
-        if let Some(Ok(_)) = redeem_action.value().get() {
-            show_redeem_feedback.set(true);
-            discount_stats_resource.refetch();
-        }
     });
 
     let hidden_notification_ids = RwSignal::new(HashSet::<String>::new());
@@ -192,65 +267,7 @@ pub fn StationDashboard() -> impl IntoView {
                                 when=move || discount_enabled_for_station
                                 fallback=move || view! { <></> }
                             >
-                                <div class="redeem-section">
-                                    <div class="redeem-header">
-                                        <span class="bell-icon">"🎟️"</span>
-                                        <strong>"Discount Code Redemption"</strong>
-                                    </div>
-
-                                    {move || discount_stats_resource.get().map(|res| match res {
-                                        Ok(stats) => view! {
-                                            <p class="redeem-stats">{format!("Total redeemed codes: {}", stats.redeemed_codes)}</p>
-                                        }.into_any(),
-                                        Err(_) => view! { <></> }.into_any(),
-                                    })}
-
-                                    <div class="redeem-form">
-                                        <input
-                                            class="price-input redeem-input"
-                                            placeholder="Enter customer discount code"
-                                            prop:value=move || redeem_code_input.get()
-                                            on:input=move |ev| redeem_code_input.set(event_target_value(&ev).to_ascii_uppercase())
-                                        />
-                                        <button
-                                            class="save-button redeem-button"
-                                            disabled=move || redeem_action.pending().get() || redeem_code_input.get().trim().is_empty()
-                                            on:click=move |_| {
-                                                redeem_action.dispatch(redeem_code_input.get());
-                                            }
-                                        >
-                                            {move || if redeem_action.pending().get() { "Redeeming..." } else { "Redeem Code" }}
-                                        </button>
-                                    </div>
-
-                                    {move || show_redeem_feedback.get().then_some(()).and_then(|_| redeem_action.value().get()).map(|res| match res {
-                                        Ok(resp) => {
-                                            let created = resp.created_at.clone();
-                                            let expires = resp.expires_at.clone();
-                                            let percentage = resp.discount_percentage;
-                                            let discounted = resp.discounted_price;
-
-                                            view! {
-                                                <div class="redeem-feedback notification-item subscription-notice">
-                                                    <div class="redeem-feedback-header">
-                                                        <p class="notification-title">{resp.message}</p>
-                                                        <button
-                                                            class="redeem-close-btn"
-                                                            on:click=move |_| show_redeem_feedback.set(false)
-                                                        >
-                                                            "✕"
-                                                        </button>
-                                                    </div>
-                                                    {created.map(|v| view! { <p class="notification-body redeem-meta">{format!("Created: {}", format_dashboard_date(&v))}</p> })}
-                                                    {expires.map(|v| view! { <p class="notification-body redeem-meta">{format!("Expires: {}", format_dashboard_date(&v))}</p> })}
-                                                    {percentage.map(|v| view! { <p class="notification-body redeem-meta">{format!("Discount: {}%", v)}</p> })}
-                                                    {discounted.map(|v| view! { <p class="notification-body redeem-meta">{format!("Sell at: ₦{}", v)}</p> })}
-                                                </div>
-                                            }.into_any()
-                                        },
-                                        Err(err) => view! { <small class="error-message">{err}</small> }.into_any(),
-                                    })}
-                                </div>
+                                <RedeemSection />
                             </Show>
                         }
                         .into_any()

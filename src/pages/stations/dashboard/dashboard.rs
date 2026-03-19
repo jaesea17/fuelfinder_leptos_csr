@@ -92,34 +92,8 @@ pub fn StationDashboard() -> impl IntoView {
         }
     });
 
-    // Action for updating prices - remains local for WASM compatibility
-    let update_price_action = Action::new_local(move |(id, new_price): &(String, i32)| {
-        let id = id.clone();
-        let price = *new_price;
-        let mut status = true;
-        if price == 0 {status = false;}
-
-        async move {
-            let BASE_URL = BaseUrl::get_base_url();
-            let url = format!("{BASE_URL}/api/v1/commodities/{}", id);
-            let body = serde_json::json!({ "price": price, "is_available": status });
-            let token = get_token();
-            
-            let _ = Request::patch(&url)
-                .header("Authorization", &format!("Bearer {token}"))
-                .json(&body)
-                .map_err(|e| e.to_string())?
-                .send()
-                .await
-                .map_err(|e| e.to_string())?;
-            
-            // Refetch the data so the UI updates with the new server state
-            station_resource.refetch(); 
-            Ok(())
-        }
-    });
-
     view! {
+        <div class="station-dashboard-page">
         <div class="station-dashboard">
             // Notification banner — renders as soon as ready, never blocks station content
             {move || notifications_resource.get().map(|res| match res {
@@ -193,11 +167,11 @@ pub fn StationDashboard() -> impl IntoView {
                                     each=move || data.commodities.clone()
                                     key=|c| c.id.clone()
                                     children=move |commodity| {
+                                        let st = data.station_type.clone().unwrap_or_default();
                                         view! {
                                             <CommodityCard
                                                 commodity=commodity
-                                                update_action=update_price_action
-                                                station_resource=station_resource
+                                                station_type=st
                                             />
                                         }
                                     }
@@ -277,6 +251,7 @@ pub fn StationDashboard() -> impl IntoView {
                     }
                 })}
             </Suspense>
+        </div>
         </div>
     }
 }

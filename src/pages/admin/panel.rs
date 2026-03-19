@@ -1,10 +1,32 @@
 use leptos::prelude::*;
+use web_sys::js_sys::Date;
 use wasm_bindgen::JsCast;
 
 use crate::pages::admin::dto::{
     StationWithSubscription, clear_admin_password, fetch_admin_stations, fetch_discount_stats,
     get_admin_password, renew_station_subscription, set_admin_password, update_station_discount,
 };
+
+fn station_matches_filter(station: &StationWithSubscription, filter: &str) -> bool {
+    match filter {
+        "active" => station.subscription_status.as_deref() == Some("active"),
+        "expired" => station.subscription_status.as_deref() != Some("active"),
+        _ => true,
+    }
+}
+
+fn renewed_subscription_end_date(days: i64) -> String {
+    let date = Date::new_0();
+    let next_day = (date.get_date() as u32).saturating_add(days.max(0) as u32);
+    date.set_date(next_day);
+
+    format!(
+        "{:04}-{:02}-{:02}",
+        date.get_full_year() as i32,
+        date.get_month() + 1,
+        date.get_date()
+    )
+}
 
 // ── Top-level component ──────────────────────────────────────────────────────
 
@@ -112,7 +134,7 @@ fn AdminLoginForm(is_logged_in: RwSignal<bool>) -> impl IntoView {
 #[component]
 fn AdminDashboardView(is_logged_in: RwSignal<bool>) -> impl IntoView {
     let active_filter = RwSignal::new("all".to_string());
-    let refresh_trigger = RwSignal::new(0u32);
+    let stations = RwSignal::new(Vec::<StationWithSubscription>::new());
     let renewing_station: RwSignal<Option<StationWithSubscription>> = RwSignal::new(None);
     let renew_days = RwSignal::new("30".to_string());
     let renew_error = RwSignal::new(None::<String>);
@@ -121,11 +143,10 @@ fn AdminDashboardView(is_logged_in: RwSignal<bool>) -> impl IntoView {
     let enabling_commodity_id = RwSignal::new(None::<String>);
     let enable_percentage_input = RwSignal::new("5".to_string());
     let enable_submit_commodity_id = RwSignal::new(None::<String>);
+    let disable_submit_commodity_id = RwSignal::new(None::<String>);
 
-    // Reactive: re-fetches whenever active_filter or refresh_trigger changes
     let stations_resource = LocalResource::new(move || {
         let filter = active_filter.get();
-        let _r = refresh_trigger.get();
         async move {
             let pw = get_admin_password();
             fetch_admin_stations(pw, filter).await
@@ -133,7 +154,6 @@ fn AdminDashboardView(is_logged_in: RwSignal<bool>) -> impl IntoView {
     });
 
     let discount_stats_resource = LocalResource::new(move || {
-        let _r = refresh_trigger.get();
         async move {
             let pw = get_admin_password();
             fetch_discount_stats(pw).await
@@ -145,7 +165,7 @@ fn AdminDashboardView(is_logged_in: RwSignal<bool>) -> impl IntoView {
         let d = *days;
         async move {
             let pw = get_admin_password();
-            renew_station_subscription(id, d, pw).await
+            renew_station_subscription(id.clone(), d, pw).await.map(|_| (id, d))
         }
     });
 
@@ -157,18 +177,37 @@ fn AdminDashboardView(is_logged_in: RwSignal<bool>) -> impl IntoView {
 
             async move {
                 let pw = get_admin_password();
-                update_station_discount(commodity_id, enabled, percentage, pw).await
+                update_station_discount(commodity_id.clone(), enabled, percentage, pw)
+                    .await
+                    .map(|_| (commodity_id, enabled, percentage))
             }
         },
     );
 
     Effect::new(move |_| {
+        if let Some(Ok(fetched_stations)) = stations_resource.get() {
+            stations.set(fetched_stations);
+        }
+    });
+
+    Effect::new(move |_| {
         if let Some(result) = renew_action.value().get() {
             match result {
-                Ok(_) => {
+                Ok((station_id, days)) => {
+                    let filter = active_filter.get();
+                    let next_expiry = renewed_subscription_end_date(days);
+
+                    stations.update(|rows| {
+                        if let Some(station) = rows.iter_mut().find(|row| row.id == station_id) {
+                            station.subscription_status = Some("active".to_string());
+                            station.subscription_ends_at = Some(next_expiry.clone());
+                        }
+
+                        rows.retain(|station| station_matches_filter(station, &filter));
+                    });
+
                     renewing_station.set(None);
                     renew_error.set(None);
-                    refresh_trigger.update(|v| *v += 1);
                 }
                 Err(e) => renew_error.set(Some(e)),
             }
@@ -178,14 +217,22 @@ fn AdminDashboardView(is_logged_in: RwSignal<bool>) -> impl IntoView {
     Effect::new(move |_| {
         if let Some(result) = discount_action.value().get() {
             match result {
-                Ok(_) => {
+                Ok((commodity_id, enabled, percentage)) => {
+                    stations.update(|rows| {
+                        if let Some(station) = rows.iter_mut().find(|row| row.commodity_id.as_deref() == Some(commodity_id.as_str())) {
+                            station.discount_enabled = Some(enabled);
+                            station.discount_percentage = if enabled { percentage } else { None };
+                        }
+                    });
+
                     discount_error.set(None);
                     enable_submit_commodity_id.set(None);
+                    disable_submit_commodity_id.set(None);
                     enabling_commodity_id.set(None);
-                    refresh_trigger.update(|v| *v += 1);
                 }
                 Err(e) => {
                     enable_submit_commodity_id.set(None);
+                    disable_submit_commodity_id.set(None);
                     discount_error.set(Some(e));
                 }
             }
@@ -246,20 +293,23 @@ fn AdminDashboardView(is_logged_in: RwSignal<bool>) -> impl IntoView {
             // ── Station table ────────────────────────────────────────────────
             <Suspense fallback=move || view! { <p class="loading">"Loading stations..."</p> }>
                 {move || stations_resource.get().map(|res| match res {
-                    Ok(stations) if stations.is_empty() => view! {
+                    Ok(_) if stations.get().is_empty() => view! {
                         <p class="empty-state">"No stations found for this filter."</p>
                     }.into_any(),
 
-                    Ok(stations) => view! {
+                    Ok(_) => {
+                        let station_rows = stations.get();
+
+                        view! {
                         <div class="admin-summary-strip">
                             <div class="admin-summary-card">
                                 <span class="admin-summary-label">"Total Stations"</span>
-                                <strong class="admin-summary-value">{stations.len().to_string()}</strong>
+                                <strong class="admin-summary-value">{station_rows.len().to_string()}</strong>
                             </div>
                             <div class="admin-summary-card">
                                 <span class="admin-summary-label">"Active Subscriptions"</span>
                                 <strong class="admin-summary-value">
-                                    {stations
+                                    {station_rows
                                         .iter()
                                         .filter(|s| s.subscription_status.as_deref() == Some("active"))
                                         .count()
@@ -269,7 +319,7 @@ fn AdminDashboardView(is_logged_in: RwSignal<bool>) -> impl IntoView {
                             <div class="admin-summary-card">
                                 <span class="admin-summary-label">"Expired / No Active Plan"</span>
                                 <strong class="admin-summary-value">
-                                    {stations
+                                    {station_rows
                                         .iter()
                                         .filter(|s| s.subscription_status.as_deref() != Some("active"))
                                         .count()
@@ -305,7 +355,7 @@ fn AdminDashboardView(is_logged_in: RwSignal<bool>) -> impl IntoView {
                                 </thead>
                                 <tbody>
                                     <For
-                                        each=move || stations.clone()
+                                        each=move || station_rows.clone()
                                         key=|s| s.id.clone()
                                         children=move |station| {
                                             let station_for_renew = station.clone();
@@ -332,6 +382,7 @@ fn AdminDashboardView(is_logged_in: RwSignal<bool>) -> impl IntoView {
                                             let commodity_id_for_enable_label = commodity_id.clone();
                                             let commodity_id_for_disable_disabled = commodity_id.clone();
                                             let commodity_id_for_disable_click = commodity_id.clone();
+                                            let commodity_id_for_disable_label = commodity_id.clone();
                                             let discount_enabled = station.discount_enabled.unwrap_or(false);
                                             let current_discount = station.discount_percentage.unwrap_or(5);
                                             let station_id_for_toggle = station.id.clone();
@@ -410,7 +461,11 @@ fn AdminDashboardView(is_logged_in: RwSignal<bool>) -> impl IntoView {
 
                                                                     <button
                                                                         class="save-button"
-                                                                        disabled=move || discount_action.pending().get() || commodity_id_for_enable_disabled.is_none()
+                                                                        disabled=move || {
+                                                                            discount_action.pending().get()
+                                                                                || commodity_id_for_enable_disabled.is_none()
+                                                                                || discount_enabled
+                                                                        }
                                                                         on:click=move |_| {
                                                                             if let Some(cid) = commodity_id_for_enable_click.clone() {
                                                                                 let selecting_this = enabling_commodity_id
@@ -454,15 +509,30 @@ fn AdminDashboardView(is_logged_in: RwSignal<bool>) -> impl IntoView {
 
                                                                     <button
                                                                         class="cancel-button"
-                                                                        disabled=move || discount_action.pending().get() || commodity_id_for_disable_disabled.is_none()
+                                                                        disabled=move || {
+                                                                            discount_action.pending().get()
+                                                                                || commodity_id_for_disable_disabled.is_none()
+                                                                                || !discount_enabled
+                                                                        }
                                                                         on:click=move |_| {
                                                                             if let Some(cid) = commodity_id_for_disable_click.clone() {
+                                                                                disable_submit_commodity_id.set(Some(cid.clone()));
                                                                                 discount_action.dispatch((cid, false, None));
                                                                                 enabling_commodity_id.set(None);
                                                                             }
                                                                         }
                                                                     >
-                                                                        "Disable"
+                                                                        {move || {
+                                                                            if let Some(cid) = commodity_id_for_disable_label.clone() {
+                                                                                if discount_action.pending().get() && disable_submit_commodity_id.get().as_deref() == Some(cid.as_str()) {
+                                                                                    "Disabling..."
+                                                                                } else {
+                                                                                    "Disable"
+                                                                                }
+                                                                            } else {
+                                                                                "Disable"
+                                                                            }
+                                                                        }}
                                                                     </button>
                                                                 </div>
 
@@ -501,7 +571,9 @@ fn AdminDashboardView(is_logged_in: RwSignal<bool>) -> impl IntoView {
                                 </tbody>
                             </table>
                         </div>
-                    }.into_any(),
+                    }
+                    .into_any()
+                    },
 
                     Err(e) => view! {
                         <p class="error-message">{e}</p>

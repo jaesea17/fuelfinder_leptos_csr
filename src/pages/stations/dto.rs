@@ -64,7 +64,7 @@ fn map_discount_redeem_error(status: u16, message: Option<&str>) -> String {
     let normalized = raw.to_ascii_lowercase();
 
     if normalized.contains("discount code not found") {
-        return "That discount code was not found. Please check the code and try again.".to_string();
+        return "Invalid code".to_string();
     }
 
     if normalized.contains("does not belong to your station") {
@@ -80,9 +80,8 @@ fn map_discount_redeem_error(status: u16, message: Option<&str>) -> String {
     }
 
     match status {
-        400 => "Invalid discount code. Please review and try again.".to_string(),
+        400 | 404 => "This code is invalid".to_string(),
         401 | 403 => "Your session may have expired. Please sign in again.".to_string(),
-        404 => "That discount code was not found. Please check and try again.".to_string(),
         409 => "This discount code has already been used.".to_string(),
         500..=599 => "Couldn’t redeem the discount right now. Please try again shortly.".to_string(),
         _ if !raw.is_empty() => raw.to_string(),

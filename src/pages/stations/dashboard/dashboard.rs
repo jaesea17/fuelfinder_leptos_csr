@@ -32,6 +32,7 @@ fn RedeemSection() -> impl IntoView {
     let redeemed_codes = RwSignal::new(None::<i64>);
     let redeem_code_input = RwSignal::new(String::new());
     let show_redeem_feedback = RwSignal::new(false);
+    let redeem_feedback_ref = NodeRef::<leptos::html::Div>::new();
 
     let redeem_action = Action::new_local(move |code: &String| {
         let code = code.clone();
@@ -48,14 +49,27 @@ fn RedeemSection() -> impl IntoView {
     });
 
     Effect::new(move |_| {
-        if let Some(Ok(_)) = redeem_action.value().get() {
+        if let Some(result) = redeem_action.value().get() {
             show_redeem_feedback.set(true);
-            redeem_code_input.set(String::new());
-            redeemed_codes.update(|count| {
-                if let Some(value) = count.as_mut() {
-                    *value += 1;
-                }
-            });
+
+            if result.is_ok() {
+                redeem_code_input.set(String::new());
+                redeemed_codes.update(|count| {
+                    if let Some(value) = count.as_mut() {
+                        *value += 1;
+                    }
+                });
+            }
+        }
+    });
+
+    Effect::new(move |_| {
+        let has_result = redeem_action.value().get().is_some();
+        if show_redeem_feedback.get() && has_result {
+            if let Some(feedback_el) = redeem_feedback_ref.get() {
+                feedback_el.scroll_into_view();
+                let _ = feedback_el.focus();
+            }
         }
     });
 
@@ -96,7 +110,11 @@ fn RedeemSection() -> impl IntoView {
                     let discounted = resp.discounted_price;
 
                     view! {
-                        <div class="redeem-feedback notification-item subscription-notice">
+                        <div
+                            node_ref=redeem_feedback_ref
+                            tabindex="-1"
+                            class="redeem-feedback notification-item subscription-notice"
+                        >
                             <div class="redeem-feedback-header">
                                 <p class="notification-title">{resp.message}</p>
                                 <button
@@ -113,7 +131,14 @@ fn RedeemSection() -> impl IntoView {
                         </div>
                     }.into_any()
                 },
-                Err(err) => view! { <small class="error-message">{err}</small> }.into_any(),
+                Err(err) => view! {
+                    <div
+                        node_ref=redeem_feedback_ref
+                        tabindex="-1"
+                    >
+                        <small class="error-message">{err}</small>
+                    </div>
+                }.into_any(),
             })}
         </div>
     }

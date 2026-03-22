@@ -191,17 +191,6 @@ pub fn StationDashboard() -> impl IntoView {
         }
     });
 
-    // Auto-mark subscription renewal notifications as read
-    Effect::new(move |_| {
-        if let Some(Ok(notifs)) = notifications_resource.get() {
-            for notif in notifs {
-                if !notif.is_read && notif.kind == "subscription" {
-                    mark_notification_action.dispatch(notif.id);
-                }
-            }
-        }
-    });
-
     view! {
         <div class="station-dashboard-page">
         <div class="station-dashboard">
@@ -242,14 +231,22 @@ pub fn StationDashboard() -> impl IntoView {
                                         view! {
                                             <div
                                                 class=format!("{kind_class} {read_class}")
-                                                on:click=move |_| {
-                                                    mark_notification_action.dispatch(notification_id.clone());
-                                                }
                                             >
-                                                <p class="notification-title">
-                                                    {if !notif.is_read { "● " } else { "" }}
-                                                    {notif.title.clone()}
-                                                </p>
+                                                <div class="redeem-feedback-header">
+                                                    <p class="notification-title">
+                                                        {if !notif.is_read { "● " } else { "" }}
+                                                        {notif.title.clone()}
+                                                    </p>
+                                                    <button
+                                                        class="redeem-close-btn"
+                                                        aria-label="Dismiss notification"
+                                                        on:click=move |_| {
+                                                            mark_notification_action.dispatch(notification_id.clone());
+                                                        }
+                                                    >
+                                                        "✕"
+                                                    </button>
+                                                </div>
                                                 <p class="notification-body">{notif.body.clone()}</p>
                                             </div>
                                         }

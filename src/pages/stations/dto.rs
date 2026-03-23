@@ -1,7 +1,7 @@
 use gloo_net::http::Request;
 use serde::{Deserialize, Serialize};
 
-use crate::{pages::fetch_nearest_stations_dto::Station, utils::base_url};
+use crate::pages::fetch_nearest_stations_dto::Station;
 use crate::utils::base_url::BaseUrl;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -89,9 +89,52 @@ fn map_discount_redeem_error(status: u16, message: Option<&str>) -> String {
     }
 }
 
+pub fn map_status_server_error(status: u16) -> String {
+    format!("Server error: {status}")
+}
+
+pub fn parse_api_error_message(status: u16, body_text: &str) -> String {
+    serde_json::from_str::<ApiErrorBody>(body_text)
+        .ok()
+        .map(|b| b.message)
+        .unwrap_or_else(|| map_status_server_error(status))
+}
+
+pub fn signup_url(base_url: &str) -> String {
+    format!("{base_url}/api/v1/auth/signup")
+}
+
+pub fn signin_url(base_url: &str) -> String {
+    format!("{base_url}/api/v1/auth/signin")
+}
+
+pub fn reg_code_url(base_url: &str) -> String {
+    format!("{base_url}/api/v1/auth/reg-code")
+}
+
+pub fn station_notifications_url(base_url: &str) -> String {
+    format!("{base_url}/api/v1/stations/dashboard/notifications")
+}
+
+pub fn station_notification_read_url(base_url: &str, notification_id: &str) -> String {
+    format!("{base_url}/api/v1/stations/dashboard/notifications/{notification_id}/read")
+}
+
+pub fn discounts_redeem_url(base_url: &str) -> String {
+    format!("{base_url}/api/v1/discounts/redeem")
+}
+
+pub fn station_discount_stats_url(base_url: &str) -> String {
+    format!("{base_url}/api/v1/discounts/station/stats")
+}
+
+pub fn map_discount_redeem_error_message(status: u16, message: Option<&str>) -> String {
+    map_discount_redeem_error(status, message)
+}
+
 pub async fn register_station(payload: RegisterFormData, lat: f64, lon:f64) -> Result<Station, String> {
-    let BASE_URL = BaseUrl::get_base_url();
-    let url = format!("{BASE_URL}/api/v1/auth/signup"); // Added "stations" to match typical API
+    let base_url = BaseUrl::get_base_url();
+    let url = signup_url(&base_url);
     let payload = serde_json::json!({
                 "name": payload.name,
                 "address": payload.address,
@@ -117,7 +160,7 @@ pub async fn register_station(payload: RegisterFormData, lat: f64, lon:f64) -> R
                 resp.json::<Station>().await.map_err(|e| format!("Parsing error: {}", e))
             } else {
                 // If 4xx or 5xx status code
-                Err(format!("Server error: {}", resp.status()))
+                Err(map_status_server_error(resp.status()))
             }
         }
         // If network failed entirely
@@ -126,8 +169,8 @@ pub async fn register_station(payload: RegisterFormData, lat: f64, lon:f64) -> R
 }
 
 pub async fn login_station(payload: LoginFormData) -> Result<LoginResponse, String> {
-    let BASE_URL = BaseUrl::get_base_url();
-    let url = format!("{BASE_URL}/api/v1/auth/signin"); // Added "stations" to match typical API
+    let base_url = BaseUrl::get_base_url();
+    let url = signin_url(&base_url);
     let request = Request::post(url.as_str())
         .header("Content-Type", "application/json")
         .json(&payload) // This serializes the JSON and sends it
@@ -143,11 +186,9 @@ pub async fn login_station(payload: LoginFormData) -> Result<LoginResponse, Stri
                 Ok(response)
             } else {
                 // If 4xx or 5xx status code — parse the JSON body for the real message
-                let msg = resp
-                    .json::<ApiErrorBody>()
-                    .await
-                    .map(|b| b.message)
-                    .unwrap_or_else(|_| format!("Server error: {}", resp.status()));
+                let status = resp.status();
+                let text = resp.text().await.unwrap_or_default();
+                let msg = parse_api_error_message(status, &text);
                 Err(msg)
             }
         }
@@ -157,8 +198,8 @@ pub async fn login_station(payload: LoginFormData) -> Result<LoginResponse, Stri
 }
 
 pub async fn generate_reg_code(code: String, super_password: String) -> Result<String, String> {
-    let BASE_URL = BaseUrl::get_base_url();
-    let url = format!("{BASE_URL}/api/v1/auth/reg-code");
+    let base_url = BaseUrl::get_base_url();
+    let url = reg_code_url(&base_url);
     let payload = serde_json::json!({
         "code": code,
         "super_password": super_password
@@ -177,7 +218,7 @@ pub async fn generate_reg_code(code: String, super_password: String) -> Result<S
                 // Return the code back on success
                 Ok(code)
             } else {
-                Err(format!("Server error: {}", resp.status()))
+                Err(map_status_server_error(resp.status()))
             }
         }
         Err(e) => Err(format!("Network error: {}", e)),
@@ -186,7 +227,7 @@ pub async fn generate_reg_code(code: String, super_password: String) -> Result<S
 
 pub async fn fetch_station_notifications(token: String) -> Result<Vec<DashboardNotification>, String> {
     let base_url = BaseUrl::get_base_url();
-    let url = format!("{base_url}/api/v1/stations/dashboard/notifications");
+    let url = station_notifications_url(&base_url);
     let resp = Request::get(&url)
         .header("Authorization", &format!("Bearer {token}"))
         .send()
@@ -196,15 +237,13 @@ pub async fn fetch_station_notifications(token: String) -> Result<Vec<DashboardN
     if resp.ok() {
         resp.json::<Vec<DashboardNotification>>().await.map_err(|e| e.to_string())
     } else {
-        Err(format!("Server error: {}", resp.status()))
+        Err(map_status_server_error(resp.status()))
     }
 }
 
 pub async fn mark_station_notification_read(notification_id: String, token: String) -> Result<(), String> {
     let base_url = BaseUrl::get_base_url();
-    let url = format!(
-        "{base_url}/api/v1/stations/dashboard/notifications/{notification_id}/read"
-    );
+    let url = station_notification_read_url(&base_url, &notification_id);
 
     let resp = Request::patch(&url)
         .header("Authorization", &format!("Bearer {token}"))
@@ -215,7 +254,7 @@ pub async fn mark_station_notification_read(notification_id: String, token: Stri
     if resp.ok() {
         Ok(())
     } else {
-        Err(format!("Server error: {}", resp.status()))
+        Err(map_status_server_error(resp.status()))
     }
 }
 
@@ -224,7 +263,7 @@ pub async fn redeem_discount_code(
     code: String,
 ) -> Result<RedeemDiscountCodeResponse, String> {
     let base_url = BaseUrl::get_base_url();
-    let url = format!("{base_url}/api/v1/discounts/redeem");
+    let url = discounts_redeem_url(&base_url);
     let payload = serde_json::json!({ "code": code });
 
     let resp = Request::post(&url)
@@ -248,13 +287,13 @@ pub async fn redeem_discount_code(
             .map(|b| b.message)
             .or_else(|| if text.trim().is_empty() { None } else { Some(text) });
 
-        Err(map_discount_redeem_error(status, parsed_message.as_deref()))
+        Err(map_discount_redeem_error_message(status, parsed_message.as_deref()))
     }
 }
 
 pub async fn fetch_station_discount_stats(token: String) -> Result<StationDiscountStats, String> {
     let base_url = BaseUrl::get_base_url();
-    let url = format!("{base_url}/api/v1/discounts/station/stats");
+    let url = station_discount_stats_url(&base_url);
 
     let resp = Request::get(&url)
         .header("Authorization", &format!("Bearer {token}"))
@@ -267,6 +306,6 @@ pub async fn fetch_station_discount_stats(token: String) -> Result<StationDiscou
             .await
             .map_err(|e| e.to_string())
     } else {
-        Err(format!("Server error: {}", resp.status()))
+        Err(map_status_server_error(resp.status()))
     }
 }

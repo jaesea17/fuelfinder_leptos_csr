@@ -15,6 +15,16 @@ fn station_matches_filter(station: &StationWithSubscription, filter: &str) -> bo
     }
 }
 
+fn station_matches_type(station: &StationWithSubscription, station_type_filter: &str) -> bool {
+    let station_type = station.station_type.to_ascii_lowercase();
+
+    match station_type_filter {
+        "petrol" => station_type.contains("petrol"),
+        "gas" => station_type.contains("gas"),
+        _ => true,
+    }
+}
+
 fn renewed_subscription_end_date(days: i64) -> String {
     let date = Date::new_0();
     let next_day = (date.get_date() as u32).saturating_add(days.max(0) as u32);
@@ -134,6 +144,7 @@ fn AdminLoginForm(is_logged_in: RwSignal<bool>) -> impl IntoView {
 #[component]
 fn AdminDashboardView(is_logged_in: RwSignal<bool>) -> impl IntoView {
     let active_filter = RwSignal::new("all".to_string());
+    let station_type_filter = RwSignal::new("all".to_string());
     let stations = RwSignal::new(Vec::<StationWithSubscription>::new());
     let renewing_station: RwSignal<Option<StationWithSubscription>> = RwSignal::new(None);
     let renew_days = RwSignal::new("30".to_string());
@@ -260,7 +271,7 @@ fn AdminDashboardView(is_logged_in: RwSignal<bool>) -> impl IntoView {
             </div>
 
             // ── Filter tabs ──────────────────────────────────────────────────
-            <div class="filter-tabs">
+            <div class="filter-tabs filter-tabs--desktop">
                 <button
                     class=move || format!(
                         "filter-tab {}",
@@ -290,15 +301,125 @@ fn AdminDashboardView(is_logged_in: RwSignal<bool>) -> impl IntoView {
                 </button>
             </div>
 
+            <div class="filter-tabs filter-tabs--desktop">
+                <button
+                    class=move || format!(
+                        "filter-tab {}",
+                        if station_type_filter.get() == "all" { "active-tab" } else { "" }
+                    )
+                    on:click=move |_| station_type_filter.set("all".to_string())
+                >
+                    "All Types"
+                </button>
+                <button
+                    class=move || format!(
+                        "filter-tab {}",
+                        if station_type_filter.get() == "petrol" { "active-tab" } else { "" }
+                    )
+                    on:click=move |_| station_type_filter.set("petrol".to_string())
+                >
+                    "Petrol Stations"
+                </button>
+                <button
+                    class=move || format!(
+                        "filter-tab {}",
+                        if station_type_filter.get() == "gas" { "active-tab" } else { "" }
+                    )
+                    on:click=move |_| station_type_filter.set("gas".to_string())
+                >
+                    "Cooking Gas Stations"
+                </button>
+            </div>
+
+            <div class="filter-tabs--mobile">
+                <div class="filter-checkbox-group">
+                    <p class="filter-checkbox-title">"Status"</p>
+                    <label class="filter-checkbox-item">
+                        <input
+                            type="checkbox"
+                            prop:checked=move || active_filter.get() == "active"
+                            on:change=move |ev| {
+                                let checked = event_target_checked(&ev);
+                                if checked {
+                                    active_filter.set("active".to_string());
+                                } else if active_filter.get() == "active" {
+                                    active_filter.set("all".to_string());
+                                }
+                            }
+                        />
+                        <span>"Active"</span>
+                    </label>
+                    <label class="filter-checkbox-item">
+                        <input
+                            type="checkbox"
+                            prop:checked=move || active_filter.get() == "expired"
+                            on:change=move |ev| {
+                                let checked = event_target_checked(&ev);
+                                if checked {
+                                    active_filter.set("expired".to_string());
+                                } else if active_filter.get() == "expired" {
+                                    active_filter.set("all".to_string());
+                                }
+                            }
+                        />
+                        <span>"Expired"</span>
+                    </label>
+                </div>
+
+                <div class="filter-checkbox-group">
+                    <p class="filter-checkbox-title">"Station Type"</p>
+                    <label class="filter-checkbox-item">
+                        <input
+                            type="checkbox"
+                            prop:checked=move || station_type_filter.get() == "petrol"
+                            on:change=move |ev| {
+                                let checked = event_target_checked(&ev);
+                                if checked {
+                                    station_type_filter.set("petrol".to_string());
+                                } else if station_type_filter.get() == "petrol" {
+                                    station_type_filter.set("all".to_string());
+                                }
+                            }
+                        />
+                        <span>"Petrol"</span>
+                    </label>
+                    <label class="filter-checkbox-item">
+                        <input
+                            type="checkbox"
+                            prop:checked=move || station_type_filter.get() == "gas"
+                            on:change=move |ev| {
+                                let checked = event_target_checked(&ev);
+                                if checked {
+                                    station_type_filter.set("gas".to_string());
+                                } else if station_type_filter.get() == "gas" {
+                                    station_type_filter.set("all".to_string());
+                                }
+                            }
+                        />
+                        <span>"Cooking Gas"</span>
+                    </label>
+                </div>
+            </div>
+
             // ── Station table ────────────────────────────────────────────────
             <Suspense fallback=move || view! { <p class="loading">"Loading stations..."</p> }>
                 {move || stations_resource.get().map(|res| match res {
-                    Ok(_) if stations.get().is_empty() => view! {
-                        <p class="empty-state">"No stations found for this filter."</p>
-                    }.into_any(),
-
                     Ok(_) => {
-                        let station_rows = stations.get();
+                        let selected_station_type_filter = station_type_filter.get();
+                        let station_rows: Vec<StationWithSubscription> = stations
+                            .get()
+                            .into_iter()
+                            .filter(|station| {
+                                station_matches_type(station, &selected_station_type_filter)
+                            })
+                            .collect();
+
+                        if station_rows.is_empty() {
+                            return view! {
+                                <p class="empty-state">"No stations found for this filter."</p>
+                            }
+                                .into_any();
+                        }
 
                         view! {
                         <div class="admin-summary-strip">

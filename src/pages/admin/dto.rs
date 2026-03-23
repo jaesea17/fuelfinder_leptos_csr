@@ -14,6 +14,42 @@ fn map_admin_request_error(error: String) -> String {
     }
 }
 
+pub fn validate_admin_password(password: &str) -> Result<(), String> {
+    if password.trim().is_empty() {
+        Err("Admin password is required".to_string())
+    } else {
+        Ok(())
+    }
+}
+
+pub fn map_admin_http_error(status: u16) -> String {
+    if status == 401 || status == 403 {
+        "Invalid admin password".to_string()
+    } else {
+        format!("Server error: {status}")
+    }
+}
+
+pub fn admin_stations_url(base_url: &str, filter: &str) -> String {
+    format!("{base_url}/api/v1/admin/stations?filter={filter}")
+}
+
+pub fn renew_subscription_url(base_url: &str) -> String {
+    format!("{base_url}/api/v1/auth/subscriptions/renew")
+}
+
+pub fn update_discount_url(base_url: &str, commodity_id: &str) -> String {
+    format!("{base_url}/api/v1/admin/discounts/{commodity_id}")
+}
+
+pub fn discount_stats_url(base_url: &str) -> String {
+    format!("{base_url}/api/v1/admin/discounts/stats")
+}
+
+pub fn map_admin_request_error_message(error: String) -> String {
+    map_admin_request_error(error)
+}
+
 // ── Types ───────────────────────────────────────────────────────────────────
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -68,12 +104,10 @@ pub async fn fetch_admin_stations(
     password: String,
     filter: String,
 ) -> Result<Vec<StationWithSubscription>, String> {
-    if password.trim().is_empty() {
-        return Err("Admin password is required".to_string());
-    }
+    validate_admin_password(&password)?;
 
     let base_url = BaseUrl::get_base_url();
-    let url = format!("{base_url}/api/v1/admin/stations?filter={filter}");
+    let url = admin_stations_url(&base_url, &filter);
 
     let resp = Request::get(&url)
         .header("X-Admin-Password", &password)
@@ -85,10 +119,8 @@ pub async fn fetch_admin_stations(
         resp.json::<Vec<StationWithSubscription>>()
             .await
             .map_err(|e| map_admin_request_error(e.to_string()))
-    } else if resp.status() == 401 || resp.status() == 403 {
-        Err("Invalid admin password".to_string())
     } else {
-        Err(format!("Server error: {}", resp.status()))
+        Err(map_admin_http_error(resp.status()))
     }
 }
 
@@ -97,12 +129,10 @@ pub async fn renew_station_subscription(
     days: i64,
     admin_password: String,
 ) -> Result<(), String> {
-    if admin_password.trim().is_empty() {
-        return Err("Admin password is required".to_string());
-    }
+    validate_admin_password(&admin_password)?;
 
     let base_url = BaseUrl::get_base_url();
-    let url = format!("{base_url}/api/v1/auth/subscriptions/renew");
+    let url = renew_subscription_url(&base_url);
 
     let payload = serde_json::json!({
         "station_id": station_id,
@@ -132,12 +162,10 @@ pub async fn update_station_discount(
     percentage: Option<i32>,
     admin_password: String,
 ) -> Result<(), String> {
-    if admin_password.trim().is_empty() {
-        return Err("Admin password is required".to_string());
-    }
+    validate_admin_password(&admin_password)?;
 
     let base_url = BaseUrl::get_base_url();
-    let url = format!("{base_url}/api/v1/admin/discounts/{commodity_id}");
+    let url = update_discount_url(&base_url, &commodity_id);
 
     let payload = serde_json::json!({
         "commodity_id": commodity_id,
@@ -157,17 +185,15 @@ pub async fn update_station_discount(
     if resp.ok() {
         Ok(())
     } else {
-        Err(format!("Server error: {}", resp.status()))
+        Err(map_admin_http_error(resp.status()))
     }
 }
 
 pub async fn fetch_discount_stats(admin_password: String) -> Result<DiscountStats, String> {
-    if admin_password.trim().is_empty() {
-        return Err("Admin password is required".to_string());
-    }
+    validate_admin_password(&admin_password)?;
 
     let base_url = BaseUrl::get_base_url();
-    let url = format!("{base_url}/api/v1/admin/discounts/stats");
+    let url = discount_stats_url(&base_url);
 
     let resp = Request::get(&url)
         .header("X-Admin-Password", &admin_password)
@@ -180,6 +206,6 @@ pub async fn fetch_discount_stats(admin_password: String) -> Result<DiscountStat
             .await
             .map_err(|e| map_admin_request_error(e.to_string()))
     } else {
-        Err(format!("Server error: {}", resp.status()))
+        Err(map_admin_http_error(resp.status()))
     }
 }

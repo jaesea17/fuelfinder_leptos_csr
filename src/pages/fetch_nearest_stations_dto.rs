@@ -44,6 +44,43 @@ fn map_discount_generation_error(status: u16, message: Option<&str>) -> String {
     }
 }
 
+pub fn map_status_server_error(status: u16) -> String {
+    format!("Server error: {status}")
+}
+
+pub fn should_retry_closest_request(attempt: usize, status: u16) -> bool {
+    attempt == 0 && (status == 503 || status == 502 || status == 504)
+}
+
+pub fn parse_discount_generation_error_message(status: u16, body_text: &str) -> String {
+    let parsed_message = serde_json::from_str::<ApiErrorBody>(body_text)
+        .ok()
+        .map(|b| b.message)
+        .or_else(|| {
+            if body_text.trim().is_empty() {
+                None
+            } else {
+                Some(body_text.to_string())
+            }
+        });
+
+    map_discount_generation_error_message(status, parsed_message.as_deref())
+}
+
+pub fn closest_stations_url(base_url: &str, lat: f64, lon: f64, station_type: &str) -> String {
+    format!(
+        "{base_url}/api/v1/stations/closest?latitude={lat}&longitude={lon}&station_type={station_type}"
+    )
+}
+
+pub fn discount_generation_url(base_url: &str) -> String {
+    format!("{base_url}/api/v1/discounts/generate")
+}
+
+pub fn map_discount_generation_error_message(status: u16, message: Option<&str>) -> String {
+    map_discount_generation_error(status, message)
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Commodity {
     pub id: String,
@@ -84,9 +121,8 @@ pub struct Station {
 }
 
 pub async fn fetch_closests(lat:f64, lon:f64, station_type:String) -> Result<Vec<Station>, String> {
-    let BASE_URL = BaseUrl::get_base_url();
-    let url = 
-    format!("{BASE_URL}/api/v1/stations/closest?latitude={lat}&longitude={lon}&station_type={station_type}"); // Added "stations" to match typical API
+    let base_url = BaseUrl::get_base_url();
+    let url = closest_stations_url(&base_url, lat, lon, &station_type);
     let mut last_error = "Unknown error".to_string();
 
     for attempt in 0..=1 {
@@ -102,10 +138,10 @@ pub async fn fetch_closests(lat:f64, lon:f64, station_type:String) -> Result<Vec
                 }
 
                 let status = resp.status();
-                last_error = format!("Server error: {status}");
+                last_error = map_status_server_error(status);
 
                 // Retry once for transient availability issues (cold-start / gateway).
-                if attempt == 0 && (status == 503 || status == 502 || status == 504) {
+                if should_retry_closest_request(attempt, status) {
                     TimeoutFuture::new(700).await;
                     continue;
                 }
@@ -131,7 +167,7 @@ pub async fn fetch_closests(lat:f64, lon:f64, station_type:String) -> Result<Vec
 
 pub async fn generate_discount_code(station_id: String) -> Result<DiscountCodeResponse, String> {
     let base_url = BaseUrl::get_base_url();
-    let url = format!("{base_url}/api/v1/discounts/generate");
+    let url = discount_generation_url(&base_url);
     let payload = serde_json::json!({ "station_id": station_id });
 
     let resp = Request::post(&url)
@@ -149,11 +185,6 @@ pub async fn generate_discount_code(station_id: String) -> Result<DiscountCodeRe
     } else {
         let status = resp.status();
         let text = resp.text().await.unwrap_or_default();
-        let parsed_message = serde_json::from_str::<ApiErrorBody>(&text)
-            .ok()
-            .map(|b| b.message)
-            .or_else(|| if text.trim().is_empty() { None } else { Some(text) });
-
-        Err(map_discount_generation_error(status, parsed_message.as_deref()))
+        Err(parse_discount_generation_error_message(status, &text))
     }
 }

@@ -1,5 +1,4 @@
 use leptos::prelude::*;
-use leptos_router::hooks::use_navigate;
 
 pub fn is_authenticated() -> bool {
     window().local_storage().ok().flatten()

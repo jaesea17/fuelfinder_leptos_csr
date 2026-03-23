@@ -6,9 +6,9 @@ use leptos_router::{StaticSegment, components::*};
 use crate::pages::not_found::NotFound;
 
 // Modules
-mod components;
-mod pages;
-mod utils;
+pub mod components;
+pub mod pages;
+pub mod utils;
 
 // Top-Level pages
 use crate::pages::petrol::Home_Petrol;

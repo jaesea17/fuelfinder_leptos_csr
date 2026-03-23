@@ -1,11 +1,10 @@
 use crate::{pages::stations::dto::{RegisterFormData, register_station}, utils::{get_gps_location::locate, validate_boundary}};
 use leptos::{logging, prelude::*};
 use wasm_bindgen::JsCast;
-use leptos_router::{components::{A, Form}, hooks::use_navigate};
+use leptos_router::{components::A, hooks::use_navigate};
 
 #[component]
 pub fn Signup() -> impl IntoView {
-    let server_error = RwSignal::new(None::<String>);
     let validation_errors = RwSignal::new(std::collections::HashMap::<String, String>::new());
     let navigate = use_navigate();
     

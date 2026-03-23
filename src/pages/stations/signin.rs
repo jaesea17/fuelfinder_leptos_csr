@@ -1,12 +1,11 @@
 use crate::{pages::stations::dto::{LoginFormData, login_station}};
-use leptos::{logging, prelude::*};
+use leptos::prelude::*;
 use wasm_bindgen::JsCast;
-use leptos_router::{components::{A, Form}, hooks::use_navigate};
+use leptos_router::{components::A, hooks::use_navigate};
 
 #[component]
 pub fn Signin() -> impl IntoView {
     // 1. Reactive state for errors and server messages
-    let server_error = RwSignal::new(None::<String>);
     let validation_errors = RwSignal::new(std::collections::HashMap::<String, String>::new());
     let navigate = use_navigate();
     let show_password = RwSignal::new(false);
